@@ -1,6 +1,6 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit'
 import { injectedWallet, metaMaskWallet, walletConnectWallet } from '@rainbow-me/rainbowkit/wallets'
-import { anvil, sepolia, baseSepolia } from 'wagmi/chains'
+import { baseSepolia } from 'wagmi/chains'
 import { HEXCHAIN_ABI } from './abi'
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'demo'
@@ -8,7 +8,7 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'demo'
 export const wagmiConfig = getDefaultConfig({
   appName: 'HexChain',
   projectId,
-  chains: [anvil, sepolia, baseSepolia],
+  chains: [baseSepolia],
   wallets: [
     {
       groupName: 'Browser Wallet',
