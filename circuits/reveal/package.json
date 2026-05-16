@@ -1,0 +1,13 @@
+{
+  "name": "hexchain-reveal-circuit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HexChain reveal ZK circuit (Circom/Groth16)",
+  "dependencies": {
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7"
+  },
+  "devDependencies": {
+    "snarkjs": "^0.7.6"
+  }
+}

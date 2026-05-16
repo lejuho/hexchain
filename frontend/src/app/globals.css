@@ -1,0 +1,470 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── 디자인 토큰 ──────────────────────────────── */
+:root {
+  --bg: #080810;
+  --surface: #10101e;
+  --surface2: #16162a;
+  --border: rgba(255, 255, 255, 0.07);
+  --text: #e8e8f0;
+  --muted: #6b6b8a;
+  --accent: #7c6bff;
+  --green: #4bffb0;
+  --amber: #ffb84b;
+  --red: #ff4b6e;
+  --teal: #4bddff;
+
+  --mono: 'Space Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+
+  /* safe area — iOS 노치/홈바 */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* ── 기본 리셋 ───────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100%;
+  overflow-x: hidden;
+  /* 모바일 스크롤 최적화 */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 스크롤바 숨김 */
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ── 앱 컨테이너 ─────────────────────────────── */
+.hx-app {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100dvh;          /* dvh: 모바일 주소창 제외 */
+  position: relative;
+  padding-bottom: calc(32px + var(--sab));
+}
+
+/* 배경 그라디언트 */
+.hx-app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  max-width: 430px;
+  margin: 0 auto;
+  background: radial-gradient(ellipse 60% 40% at 50% -10%, rgba(124, 107, 255, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── 헤더 ────────────────────────────────────── */
+.hx-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(20px + var(--sat)) 20px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.hx-logo {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+}
+.hx-logo span { color: var(--accent); }
+
+.hx-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 20px;
+  color: var(--muted);
+}
+.hx-chip.open   { color: var(--green);  border-color: rgba(75, 255, 176, 0.25); animation: hx-pulse 1.5s ease infinite; }
+.hx-chip.locked { color: var(--amber);  border-color: rgba(255, 184, 75, 0.25); }
+.hx-chip.eye    { color: var(--accent); border-color: rgba(124, 107, 255, 0.3); }
+.hx-chip.ended  { color: var(--red);    border-color: rgba(255, 75, 110, 0.25); }
+
+/* ── 스테이트 바 ─────────────────────────────── */
+.hx-state-bar {
+  display: flex;
+  gap: 4px;
+  padding: 14px 20px 0;
+  position: relative;
+  z-index: 1;
+}
+.hx-dot {
+  height: 3px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--surface2);
+  transition: background 0.4s;
+}
+.hx-dot.done   { background: var(--accent); }
+.hx-dot.active { background: var(--accent); opacity: 0.5; }
+
+/* ── 섹션 레이블 ─────────────────────────────── */
+.hx-sec {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 0 20px;
+  margin-top: 22px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── 멀티플라이어 보드 ───────────────────────── */
+.hx-mult-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+}
+.hx-mb-cell {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: transform 0.12s, border-color 0.12s;
+  user-select: none;
+  position: relative;
+}
+.hx-mb-cell:active { transform: scale(0.92); }
+.hx-mb-cell .hv { font-size: 22px; font-weight: 700; line-height: 1; }
+.hx-mb-cell .mv { font-size: 11px; line-height: 1; margin-top: 4px; opacity: 0.85; transition: opacity 0.2s; }
+
+.hx-mb-cell.m10 { background: var(--surface2); color: var(--muted); }
+.hx-mb-cell.m15 { background: rgba(124, 107, 255, 0.12); color: #a89dff; border-color: rgba(124, 107, 255, 0.2); }
+.hx-mb-cell.m20 { background: rgba(255, 184, 75, 0.12);  color: #ffc96b; border-color: rgba(255, 184, 75, 0.25); }
+.hx-mb-cell.m25 { background: rgba(255, 107, 110, 0.15); color: #ff8080; border-color: rgba(255, 107, 110, 0.3); }
+.hx-mb-cell.m30 { background: rgba(255, 107, 110, 0.25); color: #ff4b6e; border-color: rgba(255, 107, 110, 0.5); }
+
+.hx-mb-cell.selected {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 1px var(--green), inset 0 0 12px rgba(75, 255, 176, 0.15);
+}
+.hx-mb-cell.selected .hv { color: var(--green); }
+.hx-mb-cell.blinded .mv  { opacity: 0; }
+.hx-mb-cell.blinded::after {
+  content: '?';
+  position: absolute;
+  font-size: 8px;
+  color: rgba(75, 221, 255, 0.5);
+  bottom: 4px;
+  left: 0; right: 0;
+  text-align: center;
+  pointer-events: none;
+}
+.hx-mb-cell.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── 픽 슬롯 ─────────────────────────────────── */
+.hx-pick-slots {
+  display: flex;
+  gap: 6px;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+}
+.hx-pick-slot {
+  flex: 1;
+  height: 52px;
+  border-radius: 10px;
+  border: 1.5px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--muted);
+  transition: all 0.2s;
+  gap: 2px;
+}
+.hx-pick-slot .slot-order { font-size: 9px; font-weight: 400; opacity: 0.5; font-family: var(--sans); }
+.hx-pick-slot.filled        { border-style: solid; border-color: var(--accent); background: rgba(124, 107, 255, 0.1); color: var(--text); }
+.hx-pick-slot.filled.hot    { border-color: var(--amber); background: rgba(255, 184, 75, 0.1); color: var(--amber); }
+.hx-pick-slot.filled.danger { border-color: var(--red);   background: rgba(255, 75, 110, 0.1); color: var(--red); }
+
+/* ── 특전 슬롯 ───────────────────────────────── */
+.hx-perk-slot {
+  margin: 0 20px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(124, 107, 255, 0.07);
+  border: 1px dashed rgba(124, 107, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  z-index: 1;
+}
+.hx-perk-slot:active { background: rgba(124, 107, 255, 0.12); }
+.hx-perk-slot .pn { font-size: 12px; font-weight: 600; color: var(--accent); }
+.hx-perk-slot .ph { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.hx-perk-slot.empty .pn { color: var(--muted); font-weight: 400; }
+
+/* ── 인포 카드 ───────────────────────────────── */
+.hx-info-card {
+  margin: 0 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  position: relative;
+  z-index: 1;
+}
+.hx-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.hx-info-label { font-size: 12px; color: var(--muted); }
+.hx-info-val   { font-family: var(--mono); font-size: 13px; color: var(--text); font-weight: 700; }
+.hx-info-val.accent { color: var(--accent); }
+.hx-info-val.green  { color: var(--green); }
+.hx-info-val.amber  { color: var(--amber); }
+.hx-info-val.red    { color: var(--red); }
+.hx-info-divider    { height: 1px; background: var(--border); margin: 10px 0; }
+
+/* ── 힌트 배너 ───────────────────────────────── */
+.hx-hint {
+  margin: 0 20px;
+  background: rgba(124, 107, 255, 0.08);
+  border: 1px solid rgba(124, 107, 255, 0.2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #a89dff;
+  line-height: 1.6;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+.hx-hint.amber { background: rgba(255, 184, 75, 0.08);  border-color: rgba(255, 184, 75, 0.2);  color: var(--amber); }
+.hx-hint.green { background: rgba(75, 255, 176, 0.06);  border-color: rgba(75, 255, 176, 0.2);  color: var(--green); }
+.hx-hint.red   { background: rgba(255, 75, 110, 0.07);  border-color: rgba(255, 75, 110, 0.2);  color: var(--red); }
+
+/* ── 픽 칩 ───────────────────────────────────── */
+.hx-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.hx-pick-chip {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.hx-pick-chip.alive  { background: rgba(75, 255, 176, 0.12); color: var(--green); border-color: rgba(75, 255, 176, 0.3); }
+.hx-pick-chip.dead   { background: transparent; color: var(--muted); border-color: transparent; text-decoration: line-through; opacity: 0.4; }
+.hx-pick-chip.hidden { background: var(--surface2); color: transparent; border: 1px dashed var(--border); }
+
+/* ── 눈치게임 카드 ───────────────────────────── */
+.hx-eye-cards { display: flex; flex-direction: column; gap: 10px; padding: 0 20px; position: relative; z-index: 1; }
+.hx-eye-card {
+  border-radius: 14px;
+  padding: 16px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hx-eye-card:active { transform: scale(0.98); }
+.hx-eye-card.sel-1  { border-color: var(--red);    background: rgba(255, 75, 110, 0.06); }
+.hx-eye-card.sel-2  { border-color: var(--accent);  background: rgba(124, 107, 255, 0.06); }
+.hx-eye-card.sel-3  { border-color: var(--green);   background: rgba(75, 255, 176, 0.06); }
+
+.hx-eye-num   { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--muted); line-height: 1; }
+.hx-eye-card.sel-1 .hx-eye-num { color: var(--red); }
+.hx-eye-card.sel-2 .hx-eye-num { color: var(--accent); }
+.hx-eye-card.sel-3 .hx-eye-num { color: var(--green); }
+.hx-eye-sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.hx-eye-mult  { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--muted); }
+.hx-eye-card.sel-1 .hx-eye-mult { color: var(--red); }
+.hx-eye-card.sel-2 .hx-eye-mult { color: var(--accent); }
+.hx-eye-card.sel-3 .hx-eye-mult { color: var(--green); }
+.hx-eye-base  { font-size: 11px; color: var(--muted); text-align: right; margin-top: 2px; }
+.hx-eye-card-l { display: flex; flex-direction: column; gap: 4px; }
+.hx-eye-card-r { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+/* ── 버튼 ────────────────────────────────────── */
+.hx-btn {
+  display: block;
+  margin: 0 20px;
+  padding: 16px;
+  border-radius: 14px;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  width: calc(100% - 40px);
+  transition: transform 0.12s, opacity 0.12s;
+  position: relative;
+  z-index: 1;
+}
+.hx-btn:active:not(:disabled) { transform: scale(0.97); }
+.hx-btn-primary  { background: var(--accent); color: #fff; box-shadow: 0 4px 24px rgba(124, 107, 255, 0.35); }
+.hx-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+.hx-btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+/* ── 특전 오버레이 ───────────────────────────── */
+.hx-perks-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  max-width: 430px;
+  margin: 0 auto;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  animation: hx-slide-up 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
+}
+.hx-perks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(20px + var(--sat)) 20px 0;
+  flex-shrink: 0;
+}
+.hx-perks-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(20px + var(--sab));
+}
+
+/* ── 애니메이션 ──────────────────────────────── */
+@keyframes hx-pulse           { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes hx-slide-up        { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes hx-slide-in-right  { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes hx-fade-up         { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.hx-fade-up { animation: hx-fade-up 0.25s ease; }
+
+
+
+/* ── PerkInfoPanel ─────────────────────────────────────── */
+.hx-perk-info-panel {
+  border-radius: 12px;
+  border: 1px solid rgba(75,221,255,.2);
+  background: rgba(75,221,255,.04);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hx-pip-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--teal);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.04em;
+}
+.hx-pip-icon { font-size: 14px; }
+.hx-pip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hx-pip-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.hx-pip-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: var(--mono);
+}
+.hx-pip-hint {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.hx-pip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hx-pip-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.hx-pip-chip {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+}
+.hx-pip-chip.red   { background: rgba(255,75,110,.1);  border-color: rgba(255,75,110,.3);  color: var(--red); }
+.hx-pip-chip.green { background: rgba(75,255,176,.1);  border-color: rgba(75,255,176,.3);  color: var(--green); }
+.hx-pip-toggle {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(75,221,255,.25);
+  background: rgba(75,221,255,.06);
+  color: var(--teal);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+.hx-pip-toggle:hover { background: rgba(75,221,255,.12); }
+.hx-pip-toggle.active {
+  background: rgba(255,107,107,.08);
+  border-color: rgba(255,107,107,.3);
+  color: var(--red);
+}

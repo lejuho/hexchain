@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>HexChain v4</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#080810;--surface:#10101e;--surface2:#16162a;
+  --border:rgba(255,255,255,0.07);--text:#e8e8f0;--muted:#6b6b8a;
+  --accent:#7c6bff;--green:#4bffb0;--amber:#ffb84b;--red:#ff4b6e;--teal:#4bddff;--pink:#ff6bbd;
+  --mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+  --ca:#ff6b6b;--ca-bg:rgba(255,107,107,.1);--ca-bd:rgba(255,107,107,.25);
+  --cb:#7c6bff;--cb-bg:rgba(124,107,255,.1);--cb-bd:rgba(124,107,255,.25);
+  --cc:#4bddff;--cc-bg:rgba(75,221,255,.1);--cc-bd:rgba(75,221,255,.25);
+  --cd:#ffb84b;--cd-bg:rgba(255,184,75,.1);--cd-bd:rgba(255,184,75,.25);
+  --ce:#4bffb0;--ce-bg:rgba(75,255,176,.08);--ce-bd:rgba(75,255,176,.22);
+  --cf:#ff6bbd;--cf-bg:rgba(255,107,189,.08);--cf-bd:rgba(255,107,189,.22);
+  --cg:#c084fc;--cg-bg:rgba(192,132,252,.08);--cg-bd:rgba(192,132,252,.22);
+  --ch:#fb923c;--ch-bg:rgba(251,146,60,.08);--ch-bd:rgba(251,146,60,.22);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100%;overflow-x:hidden}
+.app{max-width:390px;margin:0 auto;min-height:100vh;position:relative}
+.app::before{content:'';position:fixed;inset:0;max-width:390px;margin:0 auto;
+  background:radial-gradient(ellipse 60% 40% at 50% -10%,rgba(124,107,255,.15) 0%,transparent 70%);
+  pointer-events:none;z-index:0}
+.screen{position:relative;z-index:1;display:none;flex-direction:column;
+  min-height:100vh;padding-bottom:90px;animation:fadeUp .25s ease}
+.screen.active{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:0}
+/* HEADER */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 0}
+.logo{font-family:var(--mono);font-size:13px;color:var(--muted);letter-spacing:.12em}
+.logo span{color:var(--accent)}
+.hdr-chip{font-family:var(--mono);font-size:11px;background:var(--surface2);
+  border:1px solid var(--border);padding:4px 10px;border-radius:20px;color:var(--muted)}
+.hdr-chip.open{color:var(--green);border-color:rgba(75,255,176,.25);animation:pulse 1.5s ease infinite}
+.hdr-chip.locked{color:var(--amber);border-color:rgba(255,184,75,.25)}
+.hdr-chip.eye{color:var(--accent);border-color:rgba(124,107,255,.3)}
+.hdr-chip.ended{color:var(--red);border-color:rgba(255,75,110,.25)}
+/* PROGRESS */
+.state-bar{display:flex;gap:4px;padding:14px 20px 0}
+.state-dot{height:3px;flex:1;border-radius:2px;background:var(--surface2);transition:background .4s}
+.state-dot.done{background:var(--accent)}.state-dot.active{background:var(--accent);opacity:.5}
+/* SECTION */
+.sec{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);
+  text-transform:uppercase;padding:0 20px;margin-top:22px;margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between}
+/* MULT BOARD */
+.mult-board{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:0 20px}
+.mb-cell{aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;font-family:var(--mono);
+  cursor:pointer;border:1.5px solid transparent;transition:transform .12s,border-color .12s;
+  user-select:none;position:relative}
+.mb-cell:active{transform:scale(.88)}
+.mb-cell .hv{font-size:13px;font-weight:700;line-height:1}
+.mb-cell .mv{font-size:8px;line-height:1;margin-top:2px;opacity:.8;transition:opacity .2s}
+.mb-cell.m10{background:var(--surface2);color:var(--muted)}
+.mb-cell.m15{background:rgba(124,107,255,.12);color:#a89dff;border-color:rgba(124,107,255,.2)}
+.mb-cell.m20{background:rgba(255,184,75,.12);color:#ffc96b;border-color:rgba(255,184,75,.25)}
+.mb-cell.m25{background:rgba(255,107,110,.15);color:#ff8080;border-color:rgba(255,107,110,.3)}
+.mb-cell.m30{background:rgba(255,107,110,.25);color:#ff4b6e;border-color:rgba(255,107,110,.5)}
+.mb-cell.selected{border-color:var(--green)!important;
+  box-shadow:0 0 0 1px var(--green),inset 0 0 12px rgba(75,255,176,.15)}
+.mb-cell.selected .hv{color:var(--green)}
+.mb-cell.blinded .mv{opacity:0}
+.mb-cell.blinded::after{content:'?';position:absolute;font-size:8px;color:rgba(75,221,255,.5);
+  bottom:4px;left:0;right:0;text-align:center;pointer-events:none}
+/* PICK SLOTS */
+.pick-slots{display:flex;gap:8px;padding:0 20px}
+.pick-slot{flex:1;aspect-ratio:1;border-radius:10px;border:1.5px dashed var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:20px;font-weight:700;color:var(--muted);transition:all .2s}
+.pick-slot.filled{border-style:solid;border-color:var(--accent);background:rgba(124,107,255,.1);color:var(--text)}
+.pick-slot.filled.hot{border-color:var(--amber);background:rgba(255,184,75,.1);color:var(--amber)}
+.pick-slot.filled.danger{border-color:var(--red);background:rgba(255,75,110,.1);color:var(--red)}
+/* MY PERK SLOT */
+.my-perk-slot{margin:0 20px;border-radius:10px;padding:10px 12px;
+  background:rgba(124,107,255,.07);border:1px dashed rgba(124,107,255,.25);
+  display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
+.my-perk-slot:hover{background:rgba(124,107,255,.12)}
+.my-perk-slot .pn{font-size:12px;font-weight:600;color:var(--accent)}
+.my-perk-slot .ph{font-size:10px;color:var(--muted);margin-top:2px}
+.my-perk-slot .pt{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:20px;
+  background:rgba(124,107,255,.15);color:var(--accent);white-space:nowrap}
+.my-perk-slot.empty .pn{color:var(--muted);font-weight:400}
+/* TIMER */
+.timer-wrap{padding:0 20px}
+.timer-bar{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.timer-fill{height:100%;background:var(--accent);border-radius:2px}
+.timer-label{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;padding-top:5px}
+/* BUTTONS */
+.btn{margin:0 20px;padding:16px;border-radius:14px;font-family:var(--sans);font-size:15px;font-weight:600;
+  border:none;cursor:pointer;width:calc(100% - 40px);transition:transform .12s,opacity .12s}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 24px rgba(124,107,255,.35)}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+/* INFO CARD */
+.info-card{margin:0 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+.info-row{display:flex;justify-content:space-between;align-items:center}
+.info-label{font-size:12px;color:var(--muted)}
+.info-val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:700}
+.info-val.accent{color:var(--accent)}.info-val.green{color:var(--green)}.info-val.red{color:var(--red)}
+.info-divider{height:1px;background:var(--border);margin:10px 0}
+/* CHIP */
+.chip-row{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:13px;font-weight:700;
+  padding:5px 11px;border-radius:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.chip.alive{background:rgba(75,255,176,.12);color:var(--green);border-color:rgba(75,255,176,.3)}
+.chip.dead{background:transparent;color:var(--muted);border-color:transparent;text-decoration:line-through;opacity:.4}
+.chip.hidden{background:var(--surface2);color:transparent;border:1px dashed var(--border);
+  user-select:none;position:relative;overflow:hidden}
+.chip.hidden::after{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(-45deg,transparent,transparent 3px,rgba(255,255,255,.04) 3px,rgba(255,255,255,.04) 6px)}
+/* REVEAL PANEL */
+.reveal-panel{margin:0 20px;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.reveal-row{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.reveal-row:last-child{border-bottom:none}
+.reveal-row.me{background:rgba(124,107,255,.04)}
+.reveal-row-head{display:flex;align-items:center;justify-content:space-between}
+.reveal-addr{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.reveal-tag{font-size:10px;font-weight:600;letter-spacing:.05em;padding:2px 8px;border-radius:20px;text-transform:uppercase}
+.tag-me{background:rgba(124,107,255,.2);color:var(--accent)}
+.tag-hidden{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+/* HINT BANNER */
+.hint-banner{margin:0 20px;background:rgba(124,107,255,.08);border:1px solid rgba(124,107,255,.2);
+  border-radius:10px;padding:10px 14px;font-size:12px;color:#a89dff;line-height:1.6;
+  display:flex;align-items:flex-start;gap:8px}
+.hi{color:var(--green)}.ri{color:var(--red)}.ami{color:var(--amber)}
+.hint-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.hint-banner.amber{background:rgba(255,184,75,.08);border-color:rgba(255,184,75,.2);color:var(--amber)}
+.hint-banner.green{background:rgba(75,255,176,.06);border-color:rgba(75,255,176,.2);color:var(--green)}
+.hint-banner.red{background:rgba(255,75,110,.07);border-color:rgba(255,75,110,.2);color:var(--red)}
+.hint-banner.teal{background:rgba(75,221,255,.06);border-color:rgba(75,221,255,.2);color:var(--teal)}
+/* EYE CARDS — normal */
+.eye-cards{display:flex;flex-direction:column;gap:10px;padding:0 20px}
+.eye-card{border-radius:14px;padding:16px;border:1.5px solid var(--border);background:var(--surface);
+  display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
+.eye-card:active{transform:scale(.98)}
+.eye-card.sel-1{border-color:var(--red);background:rgba(255,75,110,.06)}
+.eye-card.sel-2{border-color:var(--accent);background:rgba(124,107,255,.06)}
+.eye-card.sel-3{border-color:var(--green);background:rgba(75,255,176,.06)}
+.eye-card-l{display:flex;flex-direction:column;gap:4px}
+.eye-num{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--muted);line-height:1}
+.eye-card.sel-1 .eye-num{color:var(--red)}.eye-card.sel-2 .eye-num{color:var(--accent)}.eye-card.sel-3 .eye-num{color:var(--green)}
+.eye-sub{font-size:12px;color:var(--muted)}
+.eye-card-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.eye-mult{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--muted)}
+.eye-card.sel-1 .eye-mult{color:var(--red)}.eye-card.sel-2 .eye-mult{color:var(--accent)}.eye-card.sel-3 .eye-mult{color:var(--green)}
+.eye-base{font-size:11px;color:var(--muted)}
+/* EYE CARDS — blind flip */
+.eye-card-wrap{perspective:900px}
+.eye-card-inner{position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,0,.2,1)}
+.eye-card-inner.flipped{transform:rotateY(180deg)}
+.eye-card-front,.eye-card-back{backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:14px}
+.eye-card-back{position:absolute;inset:0;transform:rotateY(180deg);
+  background:var(--surface2);border:1.5px dashed rgba(75,221,255,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.back-icon{font-size:26px;opacity:.5}
+.back-order{font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:.08em}
+.back-tap{font-size:10px;color:var(--muted);opacity:.6}
+/* blind notice */
+.blind-notice{margin:0 20px;padding:8px 12px;border-radius:8px;
+  background:rgba(75,221,255,.06);border:1px solid rgba(75,221,255,.18);
+  font-size:11px;color:var(--teal);display:flex;align-items:flex-start;gap:8px;line-height:1.6}
+.uncertainty-note{margin:0 20px;font-size:12px;color:var(--muted);line-height:1.7;text-align:center;padding:8px}
+/* RESULT */
+.result-stage{padding:0 20px;display:flex;flex-direction:column;gap:12px}
+.result-card{border-radius:16px;padding:16px;border:1px solid var(--border);
+  background:var(--surface);opacity:0;transform:translateY(16px);transition:all .5s cubic-bezier(.2,.8,.2,1)}
+.result-card.visible{opacity:1;transform:translateY(0)}
+.result-card.rank1{border-color:rgba(255,184,75,.4);background:rgba(255,184,75,.05)}
+.result-card.rank2{border-color:rgba(124,107,255,.3);background:rgba(124,107,255,.04)}
+.r-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.r-rank{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.r-rank.gold{color:var(--amber)}.r-rank.silver{color:var(--accent)}
+.r-score{font-family:var(--mono);font-size:22px;font-weight:700}
+.r-addr{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:8px}
+.r-breakdown{font-size:12px;color:var(--muted);line-height:1.8;margin-top:8px}
+.r-breakdown b{color:var(--text);font-weight:500}
+.me-tag{font-size:10px;color:var(--accent);font-weight:600;margin-left:6px}
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:390px;padding:10px 16px 26px;background:rgba(8,8,16,.95);
+  backdrop-filter:blur(16px);border-top:1px solid var(--border);display:flex;gap:5px;z-index:100}
+.nb{flex:1;padding:8px 4px;border-radius:8px;font-size:9px;font-weight:700;letter-spacing:.05em;
+  border:1px solid var(--border);background:var(--surface);color:var(--muted);
+  cursor:pointer;transition:all .15s;text-align:center;text-transform:uppercase}
+.nb.act{background:var(--accent);color:#fff;border-color:transparent}
+.nb.act-perks{background:rgba(255,184,75,.15);color:var(--amber);border-color:rgba(255,184,75,.3)}
+/* PERKS OVERLAY */
+.perks-overlay{position:fixed;inset:0;z-index:200;max-width:390px;margin:0 auto;
+  background:var(--bg);display:none;flex-direction:column;animation:slideUp .3s cubic-bezier(.2,.8,.2,1)}
+.perks-overlay.open{display:flex}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.perks-header{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 0;flex-shrink:0}
+.perks-title{font-family:var(--mono);font-size:13px;color:var(--text);letter-spacing:.08em}
+.perks-close{font-size:18px;color:var(--muted);cursor:pointer;width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;border-radius:8px;
+  background:var(--surface2);border:1px solid var(--border)}
+/* 1인 1특전 규칙 배너 */
+.one-perk-rule{margin:10px 20px 0;padding:8px 12px;border-radius:8px;
+  background:rgba(255,184,75,.07);border:1px solid rgba(255,184,75,.2);
+  font-size:11px;color:var(--amber);display:flex;align-items:flex-start;gap:6px;line-height:1.6}
+.perks-tabs{display:flex;gap:5px;padding:12px 20px 0;overflow-x:auto;flex-shrink:0}
+.perks-tabs::-webkit-scrollbar{display:none}
+.ptab{flex-shrink:0;font-size:10px;font-weight:600;letter-spacing:.05em;padding:5px 11px;
+  border-radius:20px;cursor:pointer;border:1px solid var(--border);background:var(--surface);
+  color:var(--muted);transition:all .15s;text-transform:uppercase}
+.ptab.cur-all{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);color:var(--text)}
+.ptab.cur-a{background:var(--ca-bg);border-color:var(--ca-bd);color:var(--ca)}
+.ptab.cur-b{background:var(--cb-bg);border-color:var(--cb-bd);color:var(--cb)}
+.ptab.cur-c{background:var(--cc-bg);border-color:var(--cc-bd);color:var(--cc)}
+.ptab.cur-d{background:var(--cd-bg);border-color:var(--cd-bd);color:var(--cd)}
+.ptab.cur-e{background:var(--ce-bg);border-color:var(--ce-bd);color:var(--ce)}
+.ptab.cur-f{background:var(--cf-bg);border-color:var(--cf-bd);color:var(--cf)}
+.ptab.cur-g{background:var(--cg-bg);border-color:var(--cg-bd);color:var(--cg)}
+.ptab.cur-h{background:var(--ch-bg);border-color:var(--ch-bd);color:var(--ch)}
+.perks-body{flex:1;overflow-y:auto;padding-bottom:20px}
+.perks-body::-webkit-scrollbar{width:0}
+/* PERK CARDS */
+.cat-hdr{margin:20px 20px 10px;border-radius:12px;padding:13px 15px;display:flex;align-items:center;gap:10px}
+.cat-hdr.a{background:var(--ca-bg);border:1px solid var(--ca-bd)}
+.cat-hdr.b{background:var(--cb-bg);border:1px solid var(--cb-bd)}
+.cat-hdr.c{background:var(--cc-bg);border:1px solid var(--cc-bd)}
+.cat-hdr.d{background:var(--cd-bg);border:1px solid var(--cd-bd)}
+.cat-hdr.e{background:var(--ce-bg);border:1px solid var(--ce-bd)}
+.cat-hdr.f{background:var(--cf-bg);border:1px solid var(--cf-bd)}
+.cat-hdr.g{background:var(--cg-bg);border:1px solid var(--cg-bd)}
+.cat-hdr.h{background:var(--ch-bg);border:1px solid var(--ch-bd)}
+.cat-icon{font-size:18px;width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cat-hdr.a .cat-icon{background:rgba(255,107,107,.15)}.cat-hdr.b .cat-icon{background:rgba(124,107,255,.15)}
+.cat-hdr.c .cat-icon{background:rgba(75,221,255,.15)}.cat-hdr.d .cat-icon{background:rgba(255,184,75,.15)}
+.cat-hdr.e .cat-icon{background:rgba(75,255,176,.15)}.cat-hdr.f .cat-icon{background:rgba(255,107,189,.15)}
+.cat-hdr.g .cat-icon{background:rgba(192,132,252,.15)}.cat-hdr.h .cat-icon{background:rgba(251,146,60,.15)}
+.cat-nm{font-size:12px;font-weight:600;margin-bottom:2px}
+.cat-hdr.a .cat-nm{color:var(--ca)}.cat-hdr.b .cat-nm{color:var(--cb)}.cat-hdr.c .cat-nm{color:var(--cc)}
+.cat-hdr.d .cat-nm{color:var(--cd)}.cat-hdr.e .cat-nm{color:var(--ce)}.cat-hdr.f .cat-nm{color:var(--cf)}
+.cat-hdr.g .cat-nm{color:var(--cg)}.cat-hdr.h .cat-nm{color:var(--ch)}
+.cat-ds{font-size:11px;color:var(--muted);line-height:1.5}
+.plist{display:flex;flex-direction:column;gap:7px;padding:0 20px}
+.pcard{border-radius:11px;padding:13px 15px;background:var(--surface);border:1px solid var(--border);
+  transition:all .15s;position:relative;overflow:hidden}
+.pcard.clickable{cursor:pointer}
+.pcard.clickable:hover{border-color:rgba(124,107,255,.25);background:rgba(124,107,255,.03)}
+.pcard.equipped{border-color:var(--accent)!important;background:rgba(124,107,255,.07)!important}
+.pcard.taken{opacity:.42;cursor:not-allowed}
+.pcard.taken::after{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(-45deg,transparent,transparent 6px,rgba(0,0,0,.06) 6px,rgba(0,0,0,.06) 12px);pointer-events:none}
+.abs-badge{position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;
+  letter-spacing:.04em;padding:2px 7px;border-radius:20px}
+.abs-badge.equipped{background:rgba(124,107,255,.2);color:var(--accent)}
+.abs-badge.taken{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.pcard-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:5px}
+.pname{font-size:13px;font-weight:600;color:var(--text);line-height:1.3}
+.badges{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;margin-top:1px}
+.badge{font-size:9px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:20px;text-transform:uppercase}
+.ba{background:rgba(255,107,107,.2);color:var(--ca)}.bb{background:rgba(124,107,255,.2);color:var(--cb)}
+.bc{background:rgba(75,221,255,.2);color:var(--cc)}.bd{background:rgba(255,184,75,.2);color:var(--cd)}
+.be{background:rgba(75,255,176,.15);color:var(--ce)}.bf{background:rgba(255,107,189,.15);color:var(--cf)}
+.bg{background:rgba(192,132,252,.15);color:var(--cg)}.bh{background:rgba(251,146,60,.15);color:var(--ch)}
+.bstr{background:rgba(255,75,110,.2);color:var(--red)}.bmid{background:rgba(255,255,255,.08);color:var(--muted)}
+.bwk{background:rgba(75,255,176,.12);color:var(--green)}.bnew{background:rgba(255,107,189,.15);color:var(--pink)}
+.bdef{background:rgba(75,255,176,.1);color:var(--green)}
+.phase-tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;
+  margin-right:4px;background:rgba(255,255,255,.06);color:var(--muted);letter-spacing:.04em}
+.phase-tag.p1{background:rgba(255,184,75,.12);color:var(--amber)}.phase-tag.p2{background:rgba(124,107,255,.12);color:var(--cb)}
+.phase-tag.p12{background:rgba(75,221,255,.1);color:var(--teal)}.phase-tag.pf{background:rgba(255,107,189,.1);color:var(--pink)}
+.pdesc{font-size:12px;color:var(--muted);line-height:1.6}
+.peffect{margin-top:8px;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.04);
+  font-size:11px;font-family:var(--mono);color:var(--text);line-height:1.9}
+.gc{color:var(--green)}.rc{color:var(--red)}.amc{color:var(--amber)}.tlc{color:var(--teal)}.muc{color:var(--muted)}
+.equip-btn{width:100%;margin-top:10px;padding:8px;border-radius:7px;font-size:11px;font-weight:600;
+  border:1px solid rgba(124,107,255,.3);background:rgba(124,107,255,.1);color:var(--accent);cursor:pointer;transition:all .15s}
+.equip-btn:hover{background:rgba(124,107,255,.2)}
+.equip-btn.off{background:rgba(255,75,110,.08);border-color:rgba(255,75,110,.25);color:var(--red)}
+.equip-btn.off:hover{background:rgba(255,75,110,.15)}
+.unavail-note{margin-top:10px;font-size:11px;color:var(--muted);text-align:center;padding:7px;
+  border-radius:7px;background:var(--surface2);border:1px solid var(--border)}
+/* MATH VIZ */
+.math-viz{margin-top:8px;padding:10px;border-radius:8px;background:rgba(75,255,176,.05);border:1px solid rgba(75,255,176,.12)}
+.math-grid{display:grid;gap:4px;margin-bottom:6px}
+.math-grid.g4{grid-template-columns:repeat(4,1fr)}
+.math-grid.g8{grid-template-columns:repeat(8,1fr)}
+.math-grid.g2x2{grid-template-columns:repeat(2,1fr)}
+.mc{border-radius:5px;padding:5px 4px;text-align:center;font-family:var(--mono);font-size:10px;
+  line-height:1.4;background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.mc.hi{background:rgba(75,255,176,.12);border-color:rgba(75,255,176,.3);color:var(--green)}
+.mc.am{background:rgba(255,184,75,.1);border-color:rgba(255,184,75,.25);color:var(--amber)}
+.mc.pu{background:rgba(124,107,255,.12);border-color:rgba(124,107,255,.3);color:var(--cb)}
+.mc.re{background:rgba(255,75,110,.1);border-color:rgba(255,75,110,.25);color:var(--red)}
+.mc.bl{background:rgba(75,221,255,.08);border-color:rgba(75,221,255,.2);color:var(--teal)}
+.math-lbl{font-size:10px;color:var(--muted);line-height:1.5}
+/* EYE VIZ (C-9/C-10 preview) */
+.eye-viz{margin-top:10px;padding:10px;border-radius:8px;background:rgba(75,221,255,.05);border:1px solid rgba(75,221,255,.15)}
+.eye-viz-title{font-size:10px;margin-bottom:8px}
+.evc{border-radius:8px;padding:9px 12px;display:flex;align-items:center;
+  justify-content:space-between;margin-bottom:5px;font-family:var(--mono);font-size:11px}
+.evc:last-child{margin-bottom:0}
+.evc.normal{background:var(--surface2);border:1px solid var(--border)}
+.evc.blind{background:rgba(75,221,255,.06);border:1px dashed rgba(75,221,255,.3)}
+.evc-l{display:flex;align-items:center;gap:10px}
+.evc-num{font-size:18px;font-weight:700}.evc.normal .evc-num{color:var(--muted)}.evc.blind .evc-num{color:var(--teal)}
+.evc-sub{font-size:10px;color:var(--muted)}
+.evc-r{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.evc-mult{font-size:13px;font-weight:700;color:var(--muted)}
+.evc.blind .evc-mult{color:rgba(75,221,255,.0);background:rgba(75,221,255,.15);border-radius:3px;
+  padding:1px 5px;position:relative}
+.evc.blind .evc-mult::after{content:'???';position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;color:var(--teal);font-size:9px}
+.evc-base{font-size:9px;color:var(--muted)}
+.evc.blind .evc-base{opacity:0}
+.eye-viz-note{font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5}
+/* BOARD VIZ (C-7/C-8 preview) */
+.board-viz{margin-top:10px;padding:10px;border-radius:8px;background:rgba(75,221,255,.04);border:1px solid rgba(75,221,255,.15)}
+.board-viz-title{font-size:10px;margin-bottom:8px}
+.board-viz-note{font-size:10px;margin-top:6px;line-height:1.5}
+/* MISC */
+.h4{height:4px}.h8{height:8px}.h12{height:12px}.h16{height:16px}.h20{height:20px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.pulse{animation:pulse 1.5s ease infinite}
+.total-badge{font-family:var(--mono);font-size:11px;color:var(--muted);
+  background:var(--surface2);border:1px solid var(--border);padding:3px 10px;border-radius:20px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- S0: 픽 선택 -->
+<div class="screen active" id="gs0">
+  <div class="hdr"><div class="logo">HEX<span>CHAIN</span></div><div class="hdr-chip open pulse">● OPEN</div></div>
+  <div class="state-bar"><div class="state-dot active"></div><div class="state-dot"></div><div class="state-dot"></div><div class="state-dot"></div><div class="state-dot"></div></div>
+  <div class="sec">배율 보드 — 블록 해시 기준</div>
+  <div class="mult-board" id="multBoard"></div>
+  <div class="h16"></div>
+  <div class="sec">내 픽 선택 (4개)</div>
+  <div class="pick-slots" id="pickSlots">
+    <div class="pick-slot">?</div><div class="pick-slot">?</div><div class="pick-slot">?</div><div class="pick-slot">?</div>
+  </div>
+  <div class="h12"></div>
+  <div class="sec" style="margin-top:0">보유 특전 <span style="font-size:10px;color:var(--muted);font-family:var(--sans);text-transform:none;letter-spacing:0;font-weight:400">— 게임당 1개</span></div>
+  <div class="my-perk-slot empty" id="myPerkDisplay" onclick="openPerks()">
+    <div><div class="pn">특전 없음</div><div class="ph">탭해서 특전 장착</div></div>
+    <div style="color:var(--muted);font-size:18px">＋</div>
+  </div>
+  <div class="h16"></div>
+  <div class="timer-wrap"><div class="timer-bar"><div class="timer-fill" style="width:75%"></div></div><div class="timer-label">45초</div></div>
+  <div class="h12"></div>
+  <button class="btn btn-primary" id="commitBtn" disabled onclick="gotoScreen(1)">커밋하기 🔒</button>
+  <div class="h8"></div>
+</div>
+
+<!-- S1: 봉인 -->
+<div class="screen" id="gs1">
+  <div class="hdr"><div class="logo">HEX<span>CHAIN</span></div><div class="hdr-chip locked">● LOCKED</div></div>
+  <div class="state-bar"><div class="state-dot done"></div><div class="state-dot active"></div><div class="state-dot"></div><div class="state-dot"></div><div class="state-dot"></div></div>
+  <div class="h20"></div>
+  <div class="info-card">
+    <div class="info-row"><div class="info-label">커밋 상태</div><div class="info-val accent">봉인됨 🔒</div></div>
+    <div class="info-divider"></div>
+    <div class="info-row"><div class="info-label">내 픽</div><div class="info-val" id="s1picks">—</div></div>
+    <div class="info-divider"></div>
+    <div class="info-row"><div class="info-label">보유 특전</div><div class="info-val accent" id="s1perk">없음</div></div>
+    <div class="info-divider"></div>
+    <div class="info-row"><div class="info-label">참가자</div><div class="info-val">3 / 3명</div></div>
+  </div>
+  <div class="h12"></div>
+  <div class="hint-banner"><div class="hint-icon">ℹ</div><div>리빌하면 내 픽만 공개됩니다. 상대 픽은 계속 비공개 상태입니다.</div></div>
+  <div class="h16"></div>
+  <div class="timer-wrap"><div class="timer-bar"><div class="timer-fill" style="width:60%"></div></div><div class="timer-label">18초</div></div>
+  <div class="h16"></div>
+  <button class="btn btn-primary" onclick="gotoScreen(2)">픽 공개하기 (Reveal) →</button>
+</div>
+
+<!-- S2: 소수자 결과 + 눈치게임 -->
+<div class="screen" id="gs2">
+  <div class="hdr"><div class="logo">HEX<span>CHAIN</span></div><div class="hdr-chip eye">● 눈치게임</div></div>
+  <div class="state-bar"><div class="state-dot done"></div><div class="state-dot done"></div><div class="state-dot active"></div><div class="state-dot"></div><div class="state-dot"></div></div>
+  <div class="sec">내 픽 결과</div>
+  <div class="reveal-panel">
+    <div class="reveal-row me">
+      <div class="reveal-row-head"><div class="reveal-addr">0x1a2b…3c4d</div><div class="reveal-tag tag-me">나</div></div>
+      <div class="chip-row"><div class="chip dead">3</div><div class="chip dead">7</div><div class="chip alive">a</div><div class="chip alive">f</div></div>
+      <div style="font-size:12px;color:var(--muted)">2개 겹침 (제거) &nbsp;·&nbsp; <span style="color:var(--green)">생존 2개</span></div>
+    </div>
+    <div class="reveal-row">
+      <div class="reveal-row-head"><div class="reveal-addr">0x3c4d…5e6f</div><div class="reveal-tag tag-hidden">비공개</div></div>
+      <div class="chip-row"><div class="chip hidden">?</div><div class="chip hidden">?</div><div class="chip hidden">?</div><div class="chip hidden">?</div></div>
+      <div style="font-size:12px;color:var(--muted)">생존 픽 수 비공개</div>
+    </div>
+    <div class="reveal-row">
+      <div class="reveal-row-head"><div class="reveal-addr">0x7a8b…9c0d</div><div class="reveal-tag tag-hidden">비공개</div></div>
+      <div class="chip-row"><div class="chip hidden">?</div><div class="chip hidden">?</div><div class="chip hidden">?</div><div class="chip hidden">?</div></div>
+      <div style="font-size:12px;color:var(--muted)">생존 픽 수 비공개</div>
+    </div>
+  </div>
+  <div class="h12"></div>
+  <div id="perkHintArea"></div>
+  <div class="h20"></div>
+  <div class="sec">눈치게임 — 순서 선택</div>
+  <div class="uncertainty-note" id="eyeNote">상대가 몇 개 살았는지 모른 채 순서를 골라야 합니다</div>
+  <div id="blindNoticeWrap" style="display:none"><div class="h8"></div>
+    <div class="blind-notice"><span style="font-size:13px;flex-shrink:0">🫣</span><div id="blindNoticeText"></div></div>
+  </div>
+  <div class="h8"></div>
+  <div class="eye-cards" id="eyeCardsArea"></div>
+  <div class="h12"></div>
+  <div class="timer-wrap"><div class="timer-bar"><div class="timer-fill" style="width:55%"></div></div><div class="timer-label">33초</div></div>
+  <div class="h12"></div>
+  <button class="btn btn-primary" id="eyeBtn" disabled onclick="gotoScreen(3)">순서 커밋 🔒</button>
+  <div class="h8"></div>
+</div>
+
+<!-- S3: 리빌 대기 -->
+<div class="screen" id="gs3">
+  <div class="hdr"><div class="logo">HEX<span>CHAIN</span></div><div class="hdr-chip eye">● 리빌 대기</div></div>
+  <div class="state-bar"><div class="state-dot done"></div><div class="state-dot done"></div><div class="state-dot done"></div><div class="state-dot active"></div><div class="state-dot"></div></div>
+  <div class="h20"></div>
+  <div class="info-card">
+    <div class="info-row"><div class="info-label">선택 순서</div><div class="info-val accent">봉인됨 🔒</div></div>
+    <div class="info-divider"></div>
+    <div class="info-row"><div class="info-label">내 생존 픽</div><div class="info-val green">a, f</div></div>
+    <div class="info-divider"></div>
+    <div class="info-row"><div class="info-label">상대 상태</div><div class="info-val" style="color:var(--muted)">비공개</div></div>
+  </div>
+  <div class="h12"></div>
+  <div class="hint-banner"><div class="hint-icon">ℹ</div><div>순서를 공개하면 결과 화면에서 선택한 순서대로 점수가 공개됩니다.</div></div>
+  <div class="h16"></div>
+  <button class="btn btn-primary" onclick="gotoScreen(4)">순서 공개 (Eye Reveal) →</button>
+</div>
+
+<!-- S4: 결과 -->
+<div class="screen" id="gs4">
+  <div class="hdr"><div class="logo">HEX<span>CHAIN</span></div><div class="hdr-chip ended">● 종료</div></div>
+  <div class="state-bar"><div class="state-dot done"></div><div class="state-dot done"></div><div class="state-dot done"></div><div class="state-dot done"></div><div class="state-dot done"></div></div>
+  <div class="h16"></div>
+  <div class="sec" id="revealTitle">결과 공개 중...</div>
+  <div class="result-stage" id="resultStage"></div>
+  <div class="h16"></div>
+  <button class="btn btn-secondary" id="restartBtn" style="display:none" onclick="restart()">← 다음 판</button>
+  <div class="h8"></div>
+</div>
+
+<!-- PERKS OVERLAY -->
+<div class="perks-overlay" id="perksOverlay">
+  <div class="perks-header">
+    <div>
+      <div class="perks-title">특전 도감</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px" id="equippedNote">장착: 없음</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="total-badge" id="perkTotalBadge">0개</div>
+      <div class="perks-close" onclick="closePerks()">✕</div>
+    </div>
+  </div>
+  <div class="one-perk-rule"><span>⚠</span><span>게임당 플레이어 한 명이 하나의 특전만 장착할 수 있습니다. 이미 다른 플레이어가 사용 중인 특전은 선택할 수 없습니다.</span></div>
+  <div class="perks-tabs" id="perksTabs"></div>
+  <div class="perks-body" id="perksBody"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <button class="nb act" id="nav-g0" onclick="gotoScreen(0)">픽선택</button>
+  <button class="nb" id="nav-g1" onclick="gotoScreen(1)">봉인</button>
+  <button class="nb" id="nav-g2" onclick="gotoScreen(2)">결과</button>
+  <button class="nb" id="nav-g3" onclick="gotoScreen(3)">대기</button>
+  <button class="nb" id="nav-g4" onclick="gotoScreen(4)">최종</button>
+  <button class="nb" id="nav-perks" onclick="openPerks()">특전집</button>
+</div>
+</div>
+
+<script>
+const MULT_DATA=[10,15,20,30,10,15,10,20,15,10,30,20,10,15,10,20]
+const HEX_VALS=['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f']
+const MULT_CLS={10:'m10',15:'m15',20:'m20',25:'m25',30:'m30'}
+const PHASE_LBL={p1:'페이즈1',p2:'페이즈2',p12:'페이즈1+2',pf:'진입전용'}
+const CATS={
+  a:{icon:'💥',name:'카테고리 A — 겹침 역전형',desc:'기본 룰(겹치면 손해)을 역전합니다.'},
+  b:{icon:'👁',name:'카테고리 B — 눈치게임형',desc:'눈치게임 순서 선택과 직결됩니다.'},
+  c:{icon:'🔍',name:'카테고리 C — 정보 교란형',desc:'획득→방어→공개→차단→교란 전 사이클을 커버합니다.'},
+  d:{icon:'🎲',name:'카테고리 D — 역전/도박형',desc:'불리한 상황을 레버리지로 삼습니다.'},
+  e:{icon:'∑', name:'카테고리 E — 규칙 조작형',desc:'수학적 조건을 스스로 부과합니다.'},
+  f:{icon:'⚡',name:'카테고리 F — 중간진입 전용',desc:'포지션 NFT로 눈치게임부터 진입한 플레이어 전용.'},
+  g:{icon:'🪤',name:'카테고리 G — 함정형',desc:'커밋 단계에서 조건을 설정, 자동 발동합니다.'},
+  h:{icon:'🌀',name:'카테고리 H — 상태이상형',desc:'기절·처형·저지불가·강탈·복사 등을 게임 문법으로 번역했습니다.'},
+}
+const PERKS=[
+  {id:'a1',cat:'a',name:'군중 속으로',str:'mid',phase:'p1',isNew:false,isDef:false,desc:'3개 이상 겹치면 겹친 픽 수만큼 +0.5pt 보너스.',effect:'겹침 3개 → +1.5pt\n기본 룰 완전 역전 — 겹침이 이득'},
+  {id:'a2',cat:'a',name:'정밀 타격',str:'wk',phase:'p1',isNew:false,isDef:false,desc:'정확히 1개만 겹쳤을 때 +1.0pt.',effect:'겹침 = 1 → +1.0pt\n겹침 0 또는 2+ → 효과 없음'},
+  {id:'a3',cat:'a',name:'쌍방 충돌',str:'wk',phase:'p1',isNew:false,isDef:false,desc:'정확히 2개 겹쳤을 때 겹친 픽 배율 합만큼 보너스.',effect:'겹침 2개 + 배율합 3.5 → +3.5pt'},
+  {id:'a4',cat:'a',name:'손실 제한',str:'wk',phase:'p1',isNew:true,isDef:true,desc:'겹침으로 제거되는 픽 중 최고배율 1개는 배율의 절반을 점수로 보전.',effect:'제거된 최고배율 픽 a(3.0배) → 1.5pt 회수'},
+  {id:'a5',cat:'a',name:'최저 보장',str:'wk',phase:'p1',isNew:true,isDef:true,desc:'생존 픽이 1개 이하일 때 자동 발동. 기본 +1.0pt 추가 보장.',effect:'생존 0~1개 → 자동 발동\n완전히 망해도 최소 1.0pt 보장'},
+  {id:'a6',cat:'a',name:'역겹침',str:'mid',phase:'p1',isNew:true,isDef:false,desc:'나와 겹친 상대의 픽도 추가로 1개 더 제거.',effect:'나와 겹침 발생 시 → 상대 다른 픽 1개 추가 제거'},
+  {id:'b1',cat:'b',name:'극단 선택자',str:'mid',phase:'p2',isNew:false,isDef:false,desc:'눈치게임 1번 또는 3번 성공 시 배수 +0.3.',effect:'1번 성공 → ×2.0 → ×2.3\n3번 성공 → ×1.2 → ×1.5'},
+  {id:'b2',cat:'b',name:'고독한 질주',str:'mid',phase:'p2',isNew:false,isDef:false,desc:'아무도 선택하지 않은 순서를 골랐을 때 +1.5pt.',effect:'빈 순서 발생 시 보너스 지급'},
+  {id:'b3',cat:'b',name:'라스트 스탠드',str:'str',phase:'p2',isNew:false,isDef:false,desc:'픽 1개만 커밋. 성공 시 배율 ×3.0.',effect:'선언 → 픽 1개만 (공개됨)\n생존 → ×3.0 + 눈치 배수 최대\n겹침 → 0점'},
+  {id:'b4',cat:'b',name:'선제 희생',str:'mid',phase:'p12',isNew:true,isDef:true,desc:'최고배율 픽 강제 포기 → 눈치게임 겹침 완전 면제.',effect:'최고배율 픽 포기 → 이번 눈치게임 겹침 면제'},
+  {id:'b5',cat:'b',name:'보험',str:'wk',phase:'p2',isNew:true,isDef:true,desc:'눈치게임 겹침 발생 시 포기 픽 수를 1개 줄여줌.',effect:'겹침 인원-1개 → 겹침 인원-2개로 완화'},
+  {id:'b6',cat:'b',name:'페이크 선언',str:'mid',phase:'p2',isNew:true,isDef:false,desc:'눈치게임 전 순서를 선언. 일치/불일치에 따라 다른 보너스.',effect:'선언 = 실제 → 배수 +0.3\n선언 ≠ 실제 → 배율 +0.2'},
+  {id:'b7',cat:'b',name:'픽-순서 연동',str:'mid',phase:'p12',isNew:true,isDef:false,desc:'눈치게임 순서 번호와 같은 hex값 픽이 생존해 있으면 해당 픽 배율 ×1.5.',effect:'눈치 2번 선택 + hex 2 생존 → 해당 픽 ×1.5'},
+  {id:'c1',cat:'c',name:'겹침 목록 열람',str:'wk',phase:'p2',isNew:false,isDef:false,desc:'눈치게임 시작 전 겹친 숫자 목록을 볼 수 있습니다.',effect:'공개: "겹친 숫자: 3, 7, f"\n상대 픽 간접 추론 가능'},
+  {id:'c2',cat:'c',name:'정보 열람 (중)',str:'mid',phase:'p2',isNew:false,isDef:false,desc:'특정 플레이어 1명의 생존 픽 수를 확인합니다.',effect:'"A는 2개 살았다" — 어떤 픽인지는 비공개'},
+  {id:'c3',cat:'c',name:'핵심 정보 열람',str:'str',phase:'p2',isNew:false,isDef:false,desc:'특정 플레이어 1명의 생존 픽 중 1개를 알 수 있습니다.',effect:'"A의 생존 픽 중 하나는 a"'},
+  {id:'c4',cat:'c',name:'탈락 은폐',str:'wk',phase:'p2',isNew:true,isDef:true,desc:'내 탈락 픽 목록을 이번 판 비공개로 유지.',effect:'C-1 겹침 열람을 직접 차단\nC-2,3 생존 픽 열람은 막지 못함'},
+  {id:'c5',cat:'c',name:'반사',str:'mid',phase:'p2',isNew:true,isDef:true,desc:'상대의 정보 열람 특전(C-2, C-3)이 나에게 사용되면 역으로 상대 정보 1개 획득.',effect:'C-2 사용됨 → 나도 그 상대 생존 수 확인\nC-3 사용됨 → 나도 그 상대 픽 1개 확인'},
+  {id:'c6',cat:'c',name:'선제 공개',str:'wk',phase:'p2',isNew:true,isDef:false,desc:'눈치게임 전 내 순서를 미리 공개. 대신 배수 +0.2.',effect:'순서 공개 → 상대가 겹치러 올 수 있음\n대신 배수 +0.2'},
+  {id:'c7',cat:'c',name:'핀포인트 블라인드',str:'mid',phase:'p1',isNew:true,isDef:false,
+   desc:'상대 1명의 픽 선택 화면에서 배율 수치를 가림. hex 숫자는 보이지만 배율이 얼마인지 알 수 없음.',
+   effect:'대상: 상대 1명 지정\n배율 수치 숨김 → 고배율 픽 판단 불가\nC-3 핵심 정보 열람의 공격형 역버전\n내 화면은 정상',viz:'blind_board_single'},
+  {id:'c8',cat:'c',name:'안개전',str:'mid',phase:'p1',isNew:true,isDef:false,
+   desc:'전원의 픽 선택 화면에서 배율 수치를 가림. 나도 포함.',
+   effect:'대상: 전체 (나 포함)\nC-1,2,3 정보 특전 간접 무력화\nC-5 반사와 연계하면 자기 피해 경감',viz:'blind_board_all'},
+  {id:'c9',cat:'c',name:'순서 교란',str:'mid',phase:'p2',isNew:true,isDef:false,
+   desc:'상대 1명의 눈치게임 카드 순서를 섞음. 탭해서 잠깐 확인(peek) 가능.',
+   effect:'대상: 상대 1명 지정\nB 특전 보유자를 핀포인트로 무력화\n내 B 특전은 정상 작동\n탭해서 peek 가능 — 심리전 유지',viz:'blind_eye_single'},
+  {id:'c10',cat:'c',name:'전장 혼돈',str:'str',phase:'p2',isNew:true,isDef:false,
+   desc:'전원의 눈치게임 카드 순서를 섞음. B 계열 특전 전체 카운터. 나도 포함.',
+   effect:'대상: 전체 (나 포함)\nB 계열 특전 전부 무력화\n내가 B 특전 없을 때 상대적 이득\nB 특전 보유 상대 봉인 용도로 최적',viz:'blind_eye_all'},
+  {id:'d1',cat:'d',name:'연승 가속',str:'wk',phase:'p1',isNew:false,isDef:false,desc:'직전 판 1등이었다면 이번 판 모든 픽 배율 +0.2.',effect:'연승 → 최고 배율 3.0 → 3.2'},
+  {id:'d2',cat:'d',name:'언더독',str:'mid',phase:'p1',isNew:false,isDef:false,desc:'직전 판 꼴찌였다면 이번 판 픽 1개 추가 (5픽).',effect:'직전 꼴찌 → 4픽 → 5픽'},
+  {id:'d3',cat:'d',name:'올인',str:'str',phase:'p1',isNew:false,isDef:false,desc:'생존 픽 0~1개일 때 발동. 숫자 하나 찍어서 해시에 있으면 역전.',effect:'성공 → 해당 배율 ×1.5 추가\n실패 → 기본 0.5pt'},
+  {id:'d4',cat:'d',name:'기회주의',str:'mid',phase:'p2',isNew:true,isDef:false,desc:'다른 플레이어 눈치게임 포기 픽 최고배율 1개를 절반 가져옴.',effect:'타인 포기 픽 최고배율 × 0.5 점수 반영'},
+  {id:'d5',cat:'d',name:'자기 보험',str:'mid',phase:'p2',isNew:true,isDef:true,desc:'settle 직전 포지션 NFT를 소각해서 상금 대신 AP+SP 대량 획득.',effect:'점수 낮을 것 같으면 NFT 소각\n상금 포기 → 평판 대량 확보'},
+  {id:'e1',cat:'e',name:'서로소 보너스',str:'mid',phase:'p1',isNew:false,isDef:false,desc:'4픽이 모두 서로소이면 생존 픽 전체 배율 +0.2.',effect:'[3,5,7,b] → 서로소 → +0.2',viz:'coprime'},
+  {id:'e2',cat:'e',name:'소수 집중',str:'mid',phase:'p1',isNew:false,isDef:false,desc:'소수(2,3,5,7,b,d) 3개 이상 고르면 해당 픽 배율 +0.5.',effect:'소수 6개 → 겹칠 가능성 높음',viz:'prime'},
+  {id:'e3',cat:'e',name:'공백 선점',str:'mid',phase:'p1',isNew:false,isDef:false,desc:'해시에 없는 숫자(0회)를 3개 이상 고르면 배율 +0.3.',effect:'0회 등장 = 기본 1.0배인데 추가 보너스'},
+  {id:'e4',cat:'e',name:'레인 선언',str:'wk',phase:'p1',isNew:false,isDef:false,desc:'픽 합이 해시 첫 두 nibble 합과 같으면 +1.0pt.',effect:'해시 a+3=13, 4픽 합 13 → +1.0pt',viz:'target'},
+  {id:'e5',cat:'e',name:'구간 분산',str:'wk',phase:'p1',isNew:false,isDef:false,desc:'4픽을 [0-3][4-7][8-b][c-f] 각 구간에서 1개씩 고르면 배율 +0.15.',effect:'선형 4구간 각 1개씩 → +0.15',viz:'zone4'},
+  {id:'e6',cat:'e',name:'사분면 분산',str:'mid',phase:'p1',isNew:false,isDef:false,desc:'홀짝×소수합성수 4구역에서 각 1개씩 고르면 배율 +0.25.',effect:'짝소수는 2뿐 → 해당 구역 픽 거의 고정',viz:'zone2x2'},
+  {id:'f1',cat:'f',name:'분석가',str:'str',phase:'pf',isNew:true,isDef:false,desc:'진입 시 모든 플레이어의 생존 픽 수를 알 수 있습니다.',effect:'진입자는 전체 판세를 보고 진입'},
+  {id:'f2',cat:'f',name:'포지션 선택자',str:'mid',phase:'pf',isNew:true,isDef:false,desc:'생존 픽 수가 가장 많은 포지션으로 자동 배정. 배수 -0.1.',effect:'유리한 시작점 → 정보 우위 패널티 -0.1'},
+  {id:'f3',cat:'f',name:'후발 역전',str:'wk',phase:'pf',isNew:true,isDef:false,desc:'"4번" 순서 사용 가능. 겹침 면제 대신 배수 1.0배.',effect:'4번 → 겹침 포기 없음\n대신 배수 1.0배 (기본점수 없음)'},
+  {id:'f4',cat:'f',name:'특전 재조합',str:'mid',phase:'pf',isNew:true,isDef:false,desc:'진입 시 A~E 중 랜덤 특전 1개 추가. 기존 특전과 택1.',effect:'선택지가 넓어지는 진입 메리트'},
+  {id:'f5',cat:'f',name:'타임어택',str:'wk',phase:'pf',isNew:true,isDef:false,desc:'눈치게임 커밋을 가장 먼저 완료하면 배수 +0.2.',effect:'판세 파악 + 빠른 결단 모두 필요'},
+  {id:'g1',cat:'g',name:'숫자 함정',str:'mid',phase:'p1',isNew:true,isDef:false,desc:'hex 숫자 1개를 함정으로 지정. 상대가 그 숫자를 픽했으면 발동.',effect:'조건 일치 → 해당 픽 배율 절반 감소\n상대는 함정 존재는 알지만 어떤 숫자인지 모름'},
+  {id:'g2',cat:'g',name:'구간 함정',str:'mid',phase:'p1',isNew:true,isDef:false,desc:'4구간 중 하나를 함정 구간으로 지정. 상대가 그 구간에서 2개 이상 픽하면 발동.',effect:'조건 일치 → 해당 구간 픽 전부 제거'},
+  {id:'g3',cat:'g',name:'순서 함정',str:'mid',phase:'p2',isNew:true,isDef:false,desc:'특정 눈치게임 순서를 함정으로 지정. 설정자는 그 순서 선택 불가.',effect:'조건 일치 → 상대 포기 픽 1개 추가\n함정 설정자는 해당 순서 선택 불가'},
+  {id:'g4',cat:'g',name:'이중 함정',str:'str',phase:'p1',isNew:true,isDef:false,desc:'두 조건을 동시에 설정. 둘 다 맞으면 발동, 하나만 맞으면 불발.',effect:'둘 다 일치 → 이중 패널티\n하나만 일치 → 완전 불발\n적중 시 파괴력 최대'},
+  {id:'h1',cat:'h',name:'봉쇄',str:'str',phase:'p2',isNew:true,isDef:false,desc:'상대 1명의 특전을 이번 판 발동 불가 상태로 만들 수 있음. (기절)',effect:'강한 특전 보유자를 무력화\n봉쇄 대상 특전이 뭔지는 공개 정보'},
+  {id:'h2',cat:'h',name:'처형',str:'str',phase:'p2',isNew:true,isDef:false,desc:'상대 생존 픽이 1개 이하인 상태에서 같은 눈치게임 순서를 고르면 상대 마지막 픽도 제거.',effect:'이미 불리한 상대를 완전히 마무리하는 피니셔\n나도 같은 순서를 고르는 리스크 존재'},
+  {id:'h3',cat:'h',name:'저지불가',str:'mid',phase:'p12',isNew:true,isDef:true,desc:'상대 특전이 나에게 미치는 모든 효과를 무효화. 단, 내 공격적 특전도 발동 불가. (양날검)',effect:'정보 열람 · 함정 · 봉쇄 전부 차단\n내 공격 특전도 동시에 봉인'},
+  {id:'h4',cat:'h',name:'강제 교환',str:'mid',phase:'p2',isNew:true,isDef:false,desc:'상대 생존 픽 1개와 내 픽 1개를 강제 교환.',effect:'상대 고배율 픽과 내 저배율 픽 교환'},
+  {id:'h5',cat:'h',name:'순서 선점',str:'mid',phase:'p2',isNew:true,isDef:false,desc:'특정 순서를 선점 선언. 동일 순서를 선택한 상대가 있으면 그 상대가 다음 빈 순서로 밀려남. 선언은 공개 정보.',effect:'선언 자체가 공개 → 상대가 알고 피할 수 있음\n충돌 시 내가 우선권 보장\n3번 선점 시 밀려나는 상대는 겹침 패널티 가능'},
+  {id:'h6',cat:'h',name:'특전 복사',str:'mid',phase:'p2',isNew:true,isDef:false,desc:'상대 1명의 특전을 이번 판 한정으로 자신도 사용.',effect:'원본 보유자도 여전히 사용 가능\n둘 다 같은 효과 → 시너지 또는 상호 방해'},
+  {id:'h7',cat:'h',name:'픽 미러링',str:'mid',phase:'p2',isNew:true,isDef:false,desc:'상대 1명이 고른 픽 중 하나를 나도 동일하게 선택한 것으로 처리.',effect:'나도 그 픽을 잃지만 상대도 잃음\n상대 최고배율 픽을 의도적으로 겹치게 만드는 공격'},
+]
+
+/* ── STATE ── */
+let myPicks=[], equippedPerkId=null, perkFilter='all'
+let eyeBlind=false, eyeSelected=null, eyeOrder=[0,1,2]
+// 데모: 이미 다른 플레이어가 장착한 특전
+const TAKEN_PERKS=new Set(['b3','d3','g4','c10'])
+
+/* ── MULT BOARD ── */
+function renderMultBoard(){
+  const b=document.getElementById('multBoard'); b.innerHTML=''
+  HEX_VALS.forEach((h,i)=>{
+    const m=MULT_DATA[i], d=document.createElement('div')
+    d.className=`mb-cell ${MULT_CLS[m]||'m10'}`; d.id=`cell-${h}`
+    d.innerHTML=`<div class="hv">${h}</div><div class="mv">${(m/10).toFixed(1)}x</div>`
+    d.onclick=()=>togglePick(h,d); b.appendChild(d)
+  })
+}
+function togglePick(hex,el){
+  const i=myPicks.indexOf(hex)
+  if(i>=0){myPicks.splice(i,1);el.classList.remove('selected')}
+  else{if(myPicks.length>=4)return;myPicks.push(hex);el.classList.add('selected')}
+  renderSlots(); document.getElementById('commitBtn').disabled=myPicks.length<4
+}
+function renderSlots(){
+  const s=document.getElementById('pickSlots')
+  for(let i=0;i<4;i++){
+    const slot=s.children[i],h=myPicks[i]
+    if(h!==undefined){const m=MULT_DATA[parseInt(h,16)];slot.className='pick-slot filled'+(m>=30?' danger':m>=20?' hot':'');slot.textContent=h}
+    else{slot.className='pick-slot';slot.textContent='?'}
+  }
+}
+function applyBoardBlind(on){
+  document.querySelectorAll('.mb-cell').forEach(el=>{on?el.classList.add('blinded'):el.classList.remove('blinded')})
+}
+
+/* ── EYE CARDS ── */
+const EYE_DATA=[
+  {n:1,mult:'×2.0',base:'+ 1.0pt',sub:'먼저 공개 · 고위험',sc:'sel-1'},
+  {n:2,mult:'×1.5',base:'+ 0.7pt',sub:'두 번째 공개',sc:'sel-2'},
+  {n:3,mult:'×1.2',base:'+ 0.5pt',sub:'마지막 공개 · 안전',sc:'sel-3'},
+]
+function renderEyeCards(){
+  const area=document.getElementById('eyeCardsArea'); area.innerHTML=''
+  eyeOrder.forEach((di,pos)=>{
+    const d=EYE_DATA[di], sel=eyeSelected===d.n
+    if(!eyeBlind){
+      const c=document.createElement('div')
+      c.className=`eye-card${sel?' '+d.sc:''}`
+      c.innerHTML=`<div class="eye-card-l"><div class="eye-num">${d.n}</div><div class="eye-sub">${d.sub}</div></div>
+        <div class="eye-card-r"><div class="eye-mult">${d.mult}</div><div class="eye-base">${d.base}</div></div>`
+      c.onclick=()=>selectEye(d.n); area.appendChild(c)
+    } else {
+      const wrap=document.createElement('div'); wrap.className='eye-card-wrap'
+      wrap.innerHTML=`<div class="eye-card-inner flipped" id="eyi${pos}">
+        <div class="eye-card-front"><div class="eye-card${sel?' '+d.sc:''}">
+          <div class="eye-card-l"><div class="eye-num">${d.n}</div><div class="eye-sub">${d.sub}</div></div>
+          <div class="eye-card-r"><div class="eye-mult">${d.mult}</div><div class="eye-base">${d.base}</div></div>
+        </div></div>
+        <div class="eye-card-back"><div class="back-icon">🃏</div>
+          <div class="back-order">순서 ${pos+1}</div><div class="back-tap">탭해서 peek</div></div>
+      </div>`
+      const inner=wrap.querySelector('.eye-card-inner')
+      let pt=null
+      wrap.onclick=()=>{
+        if(inner.classList.contains('flipped')){
+          inner.classList.remove('flipped'); clearTimeout(pt)
+          pt=setTimeout(()=>inner.classList.add('flipped'),1200)
+        } else { selectEye(d.n); clearTimeout(pt) }
+      }
+      area.appendChild(wrap)
+    }
+  })
+}
+function selectEye(n){eyeSelected=n;renderEyeCards();document.getElementById('eyeBtn').disabled=false}
+function activateBlind(single){
+  eyeBlind=true; eyeOrder=[0,1,2].sort(()=>Math.random()-.5)
+  const nw=document.getElementById('blindNoticeWrap'), nt=document.getElementById('blindNoticeText')
+  nw.style.display='block'
+  nt.textContent=single
+    ?'상대 1명의 순서 카드가 섞여 있습니다 (C-9 순서 교란). 내 카드는 정상입니다.'
+    :'전원의 순서 카드가 섞여 있습니다 (C-10 전장 혼돈). 탭해서 잠깐 확인 가능.'
+  renderEyeCards()
+}
+
+/* ── SCREENS ── */
+function gotoScreen(n){
+  for(let i=0;i<=4;i++){
+    document.getElementById(`gs${i}`)?.classList.remove('active')
+    document.getElementById(`nav-g${i}`)?.classList.remove('act')
+  }
+  document.getElementById(`gs${n}`)?.classList.add('active')
+  document.getElementById(`nav-g${n}`)?.classList.add('act')
+  if(n===1){
+    const p=equippedPerkId?PERKS.find(x=>x.id===equippedPerkId):null
+    document.getElementById('s1picks').textContent=myPicks.length?myPicks.join(', '):'3, 7, a, f'
+    document.getElementById('s1perk').textContent=p?p.name:'없음'
+  }
+  if(n===2){
+    updatePerkHint(); applyBoardBlind(equippedPerkId==='c8')
+    eyeBlind=false;eyeSelected=null;eyeOrder=[0,1,2]
+    document.getElementById('blindNoticeWrap').style.display='none'
+    document.getElementById('eyeBtn').disabled=true
+    if(equippedPerkId==='c9')activateBlind(true)
+    else if(equippedPerkId==='c10')activateBlind(false)
+    else renderEyeCards()
+  }
+  if(n===4)setTimeout(animateResults,300)
+  window.scrollTo(0,0)
+}
+
+/* ── PERK HINT ── */
+const HINTS={
+  c1:{cls:'teal',icon:'🔍',text:'겹침 목록 열람 발동 — 겹친 숫자: 3, 7'},
+  c2:{cls:'teal',icon:'🔍',text:'정보 열람 — 0x3c4d의 생존 픽: 2개'},
+  c3:{cls:'teal',icon:'🔍',text:'핵심 정보 열람 — 0x3c4d의 픽 중 하나: b'},
+  c4:{cls:'green',icon:'🛡',text:'탈락 은폐 발동 — 내 탈락 픽 목록 비공개'},
+  c7:{cls:'teal',icon:'🫣',text:'핀포인트 블라인드 발동 — 상대 1명 배율 수치 가림'},
+  c8:{cls:'amber',icon:'🌫',text:'안개전 발동 — 전원 배율 수치 가림 (나 포함)'},
+  c9:{cls:'teal',icon:'🃏',text:'순서 교란 발동 — 상대 1명 눈치게임 카드 순서 섞음'},
+  c10:{cls:'red',icon:'🌀',text:'전장 혼돈 발동 — 전원 눈치게임 카드 순서 섞음'},
+  b4:{cls:'green',icon:'⚡',text:'선제 희생 가능 — 최고배율 픽 포기 시 겹침 면제'},
+  b5:{cls:'green',icon:'🛡',text:'보험 발동 — 겹침 포기 픽 수 1개 감소'},
+  h1:{cls:'amber',icon:'⛔',text:'봉쇄 가능 — 상대 특전 1개 이번 판 봉쇄'},
+  h3:{cls:'red',icon:'🌀',text:'저지불가 선언됨 — 모든 외부 효과 차단 (내 공격 특전도 봉인)'},
+}
+function updatePerkHint(){
+  const area=document.getElementById('perkHintArea')
+  const h=equippedPerkId?HINTS[equippedPerkId]:null
+  area.innerHTML=h
+    ?`<div class="hint-banner ${h.cls}"><div class="hint-icon">${h.icon}</div><div>${h.text}</div></div>`
+    :`<div class="hint-banner amber"><div class="hint-icon">⚡</div><div>상대의 생존 픽과 수를 알 수 없습니다.<br>특전이 있으면 일부 정보를 얻을 수 있습니다.</div></div>`
+}
+
+/* ── RESULTS ── */
+const RESULTS=[
+  {addr:'0x1a2b…3c4d',eyeOrder:1,finalRank:0,picks:['a','f'],score:'11.0',breakdown:'(a×3.0 + f×2.0) × 2.0 + 1.0',isMe:true},
+  {addr:'0x7a8b…9c0d',eyeOrder:2,finalRank:1,picks:['0','b','c'],score:'8.3',breakdown:'(0×1.0 + b×2.0 + c×1.5) × 1.5 + 0.7',isMe:false},
+  {addr:'0x3c4d…5e6f',eyeOrder:3,finalRank:2,picks:['5','e'],score:'4.7',breakdown:'(5×1.5 + e×1.0) × 1.2 + 0.5',isMe:false},
+]
+function animateResults(){
+  const stage=document.getElementById('resultStage'),title=document.getElementById('revealTitle')
+  stage.innerHTML='';document.getElementById('restartBtn').style.display='none'
+  const ord=[...RESULTS].sort((a,b)=>a.eyeOrder-b.eyeOrder)
+  const rl=['🥇 1등','🥈 2등','🥉 3등'],rc=['gold','silver',''],cc=['rank1','rank2','']
+  let delay=500
+  ord.forEach((r,i)=>{
+    setTimeout(()=>{
+      title.textContent=`${r.eyeOrder}번 선택자 결과 공개`
+      const card=document.createElement('div'); card.className=`result-card ${cc[r.finalRank]}`
+      card.innerHTML=`<div class="r-head"><div class="r-rank ${rc[r.finalRank]}">${rl[r.finalRank]}${r.isMe?'<span class="me-tag">나</span>':''}</div><div class="r-score">${r.score}pt</div></div>
+        <div class="r-addr">${r.addr}</div>
+        <div class="chip-row">${r.picks.map(p=>`<span class="chip alive">${p}</span>`).join('')}</div>
+        <div class="r-breakdown"><b>계산:</b> ${r.breakdown}</div>`
+      stage.appendChild(card)
+      requestAnimationFrame(()=>requestAnimationFrame(()=>card.classList.add('visible')))
+      if(i===ord.length-1)setTimeout(()=>{title.textContent='최종 결과';document.getElementById('restartBtn').style.display='block'},800)
+    },delay); delay+=1400
+  })
+}
+function restart(){
+  myPicks=[];equippedPerkId=null
+  document.querySelectorAll('.mb-cell').forEach(c=>c.classList.remove('selected','blinded'))
+  renderSlots();updateEquippedUI();document.getElementById('commitBtn').disabled=true;gotoScreen(0)
+}
+
+/* ── PERKS OVERLAY ── */
+function openPerks(){document.getElementById('perksOverlay').classList.add('open');document.getElementById('nav-perks').classList.add('act-perks');renderPerkTabs();renderPerks()}
+function closePerks(){document.getElementById('perksOverlay').classList.remove('open');document.getElementById('nav-perks').classList.remove('act-perks')}
+function renderPerkTabs(){
+  const cats=['all','a','b','c','d','e','f','g','h']
+  const lbl={all:'전체',a:'A겹침',b:'B눈치',c:'C정보',d:'D역전',e:'E수학',f:'F진입',g:'G함정',h:'H상태이상'}
+  document.getElementById('perksTabs').innerHTML=cats.map(c=>{
+    const cur=perkFilter===c
+    const cls=cur?(c==='all'?'ptab cur-all':`ptab cur-${c}`):'ptab'
+    return`<div class="${cls}" onclick="filterPerks('${c}')">${lbl[c]}</div>`
+  }).join('')
+}
+function filterPerks(cat){perkFilter=cat;renderPerkTabs();renderPerks();document.getElementById('perksBody').scrollTop=0}
+function equipPerk(id){
+  if(TAKEN_PERKS.has(id)&&equippedPerkId!==id)return
+  equippedPerkId=equippedPerkId===id?null:id
+  updateEquippedUI();renderPerks()
+}
+function updateEquippedUI(){
+  const p=equippedPerkId?PERKS.find(x=>x.id===equippedPerkId):null
+  const d=document.getElementById('myPerkDisplay'),n=document.getElementById('equippedNote')
+  if(p){
+    d.className='my-perk-slot'
+    d.innerHTML=`<div><div class="pn">${p.name}</div><div class="ph">${p.desc.length>34?p.desc.slice(0,34)+'…':p.desc}</div></div><div class="pt">${p.cat.toUpperCase()}-${p.id.slice(1)}</div>`
+    n.textContent=`장착: ${p.name}`
+  } else {
+    d.className='my-perk-slot empty'
+    d.innerHTML=`<div><div class="pn">특전 없음</div><div class="ph">탭해서 특전 장착</div></div><div style="color:var(--muted);font-size:18px">＋</div>`
+    n.textContent='장착: 없음'
+  }
+}
+
+/* ── VIZ ── */
+function vizHTML(type){
+  if(!type)return''
+  const HV=HEX_VALS
+  if(type==='coprime')return`<div class="math-viz"><div class="math-grid g4">${['3','5','7','b'].map(v=>`<div class="mc hi">${v}<br><span style="font-size:9px">소수</span></div>`).join('')}</div><div class="math-lbl">gcd 전부 1 → <span style="color:var(--green)">서로소 ✓ +0.2</span></div></div>`
+  if(type==='prime')return`<div class="math-viz"><div class="math-grid g8">${HV.map(v=>`<div class="mc${['2','3','5','7','b','d'].includes(v)?' hi':''}">${v}</div>`).join('')}</div><div class="math-lbl">초록 = 소수 6개 · 3개+ 선택 시 <span style="color:var(--green)">+0.5/픽</span></div></div>`
+  if(type==='target')return`<div class="math-viz"><div style="font-family:var(--mono);font-size:11px;color:var(--text);margin-bottom:6px">해시 첫 두 nibble: <span style="color:var(--amber)">a</span>+<span style="color:var(--amber)">3</span>=<span style="color:var(--green)">13</span></div><div class="math-grid g4">${[['1',''],['3',''],['4',''],['5','hi']].map(([v,c])=>`<div class="mc ${c}">${v}</div>`).join('')}</div><div class="math-lbl">픽합 1+3+4+5=13 → <span style="color:var(--green)">+1.0pt</span></div></div>`
+  if(type==='zone4')return`<div class="math-viz"><div class="math-grid g4"><div class="mc am">0-3</div><div class="mc pu">4-7</div><div class="mc hi">8-b</div><div class="mc re">c-f</div></div><div class="math-lbl">각 구간 1개씩 → <span style="color:var(--green)">+0.15</span></div></div>`
+  if(type==='zone2x2')return`<div class="math-viz"><div class="math-grid g2x2"><div class="mc hi" style="padding:8px 4px">홀소수<br><span style="font-size:9px">3,5,7,b,d</span></div><div class="mc am" style="padding:8px 4px">홀합성수<br><span style="font-size:9px">1,9,f</span></div><div class="mc pu" style="padding:8px 4px">짝소수<br><span style="font-size:9px">2만</span></div><div class="mc re" style="padding:8px 4px">짝합성수<br><span style="font-size:9px">0,4,6,8,a,c,e</span></div></div><div class="math-lbl">4구역 각 1개 → <span style="color:var(--green)">+0.25</span></div></div>`
+  // C-7: 단일 타겟 보드 블라인드
+  if(type==='blind_board_single')return`<div class="board-viz"><div class="board-viz-title" style="color:var(--teal)">상대 화면 미리보기 — 배율 수치 가림</div><div class="math-grid g8">${HV.map((v,i)=>{const h=MULT_DATA[i]>=20;return`<div class="mc${h?' bl':''}"><div style="font-size:11px;font-weight:700">${v}</div><div style="font-size:8px;${h?'color:transparent;background:rgba(75,221,255,.2);border-radius:2px':''}">?</div></div>`}).join('')}</div><div class="board-viz-note" style="color:var(--teal)">고배율 위치 판단 불가 · <span style="color:var(--green)">내 화면은 정상</span></div></div>`
+  // C-8: 전체 보드 블라인드
+  if(type==='blind_board_all')return`<div class="board-viz"><div class="board-viz-title" style="color:var(--amber)">전원 화면 미리보기 — 배율 수치 가림 (나 포함)</div><div class="math-grid g8">${HV.map(v=>`<div class="mc bl"><div style="font-size:11px;font-weight:700">${v}</div><div style="font-size:8px;color:transparent;background:rgba(75,221,255,.2);border-radius:2px">?</div></div>`).join('')}</div><div class="board-viz-note" style="color:var(--amber)">나도 포함 · 정보 우위 특전 간접 무력화</div></div>`
+  // C-9: 단일 눈치 블라인드
+  if(type==='blind_eye_single')return`<div class="eye-viz"><div class="eye-viz-title" style="color:var(--teal)">상대 화면 미리보기 — 카드 순서 섞임</div>${EYE_DATA.map(d=>`<div class="evc blind"><div class="evc-l"><div style="font-size:20px">🃏</div><div><div style="font-size:11px;color:var(--teal);font-family:var(--mono)">순서 ?</div><div style="font-size:10px;color:var(--muted)">탭해서 peek</div></div></div><div class="evc-r"><div class="evc-mult">${d.mult}</div><div class="evc-base">${d.base}</div></div></div>`).join('')}<div class="eye-viz-note" style="color:var(--green)">내 카드는 정상 — B 특전 보유 상대 핀포인트 봉인</div></div>`
+  // C-10: 전체 눈치 블라인드
+  if(type==='blind_eye_all')return`<div class="eye-viz"><div class="eye-viz-title" style="color:var(--red)">전원 화면 미리보기 — 카드 순서 섞임 (나 포함)</div>${EYE_DATA.map(d=>`<div class="evc blind"><div class="evc-l"><div style="font-size:20px">🃏</div><div><div style="font-size:11px;color:var(--teal);font-family:var(--mono)">순서 ?</div><div style="font-size:10px;color:var(--muted)">탭해서 peek</div></div></div><div class="evc-r"><div class="evc-mult">${d.mult}</div><div class="evc-base">${d.base}</div></div></div>`).join('')}<div class="eye-viz-note" style="color:var(--amber)">나도 포함 — B 특전 없을 때 상대적 이득</div></div>`
+  return''
+}
+
+/* ── PERK LIST ── */
+function strBadge(s){return s==='str'?'bstr':s==='wk'?'bwk':'bmid'}
+function strLabel(s){return s==='str'?'강력':s==='wk'?'소극':'보통'}
+function fmtEff(t){
+  return t.split('\n').map(l=>
+    l.replace(/\+[\d.]+pt/g,m=>`<span class="gc">${m}</span>`)
+     .replace(/×[\d.]+/g,m=>`<span class="amc">${m}</span>`)
+     .replace(/0점|0pt/g,m=>`<span class="rc">${m}</span>`)
+     .replace(/-[\d.]+(?:pt|배)|-0\.\d/g,m=>`<span class="rc">${m}</span>`)
+     .replace(/→/g,'<span class="muc">→</span>')
+  ).join('<br>')
+}
+function renderPerks(){
+  const cats=perkFilter==='all'?Object.keys(CATS):[perkFilter]
+  const filtered=perkFilter==='all'?PERKS:PERKS.filter(p=>p.cat===perkFilter)
+  document.getElementById('perkTotalBadge').textContent=`${filtered.length}개`
+  let html=''
+  cats.forEach(cat=>{
+    const perks=filtered.filter(p=>p.cat===cat); if(!perks.length)return
+    const ci=CATS[cat]
+    html+=`<div class="cat-hdr ${cat}"><div class="cat-icon">${ci.icon}</div><div><div class="cat-nm">${ci.name}</div><div class="cat-ds">${ci.desc}</div></div></div><div class="plist">`
+    perks.forEach(p=>{
+      const eq=equippedPerkId===p.id
+      const tk=TAKEN_PERKS.has(p.id)&&!eq
+      const ok=!tk
+      html+=`<div class="pcard${eq?' equipped':tk?' taken':ok?' clickable':''}"${ok?`onclick="equipPerk('${p.id}')"`:''}>
+        ${eq?`<div class="abs-badge equipped">✓ 장착중</div>`:''}
+        ${tk?`<div class="abs-badge taken">다른 플레이어 사용중</div>`:''}
+        <div class="pcard-head"><div class="pname">${p.name}</div>
+          <div class="badges">${p.isNew?'<span class="badge bnew">신규</span>':''}${p.isDef?'<span class="badge bdef">방어</span>':''}<span class="badge b${p.cat}">Cat.${p.cat.toUpperCase()}</span><span class="badge ${strBadge(p.str)}">${strLabel(p.str)}</span></div>
+        </div>
+        <div style="margin-bottom:6px"><span class="phase-tag ${p.phase}">${PHASE_LBL[p.phase]}</span></div>
+        <div class="pdesc">${p.desc}</div>
+        <div class="peffect">${fmtEff(p.effect)}</div>
+        ${p.viz?vizHTML(p.viz):''}
+        ${ok?`<button class="equip-btn${eq?' off':''}" onclick="event.stopPropagation();equipPerk('${p.id}')">${eq?'✕ 장착 해제':'＋ 이 특전 장착'}</button>`:'<div class="unavail-note">이번 게임에서 선택 불가</div>'}
+      </div>`
+    })
+    html+=`</div><div class="h8"></div>`
+  })
+  document.getElementById('perksBody').innerHTML=html
+}
+
+/* ── INIT ── */
+renderMultBoard(); renderSlots(); renderPerkTabs(); renderPerks(); renderEyeCards()
+</script>
+</body>
+</html>
