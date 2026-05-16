@@ -180,7 +180,55 @@ circuits/
 - **Information asymmetry**: 일부 특전은 정보 접근을 열어주되, 지갑 서명과 페이즈 검증으로 제한합니다.
 - **Hybrid privacy model**: 모든 것을 숨기기보다, 게임성에 필요한 곳만 정확히 숨깁니다.
 
-## 로컬 실행 메모
+## 실행 모드
+
+프로젝트는 크게 두 방식으로 실행합니다.
+
+### 1. Anvil 로컬 모드
+
+로컬 체인까지 한 번에 띄우는 개발 모드입니다.
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.local.example frontend/.env.local
+./script/dev.sh
+```
+
+이 스크립트는 Anvil을 시작하고, 컨트랙트를 새로 배포한 뒤, `backend/.env`와 `frontend/.env.local`의 컨트랙트 주소를 자동으로 갱신합니다.
+
+### 2. Base Sepolia 모드
+
+이미 배포된 테스트넷 컨트랙트에 붙는 모드입니다.
+
+```bash
+cp backend/.env.base-sepolia.example backend/.env
+cp frontend/.env.base-sepolia.example frontend/.env.local
+```
+
+그다음:
+
+```bash
+# backend/.env
+OPERATOR_PRIVATE_KEY=<HexChain operator 지갑 키>
+CORS_ORIGIN=<실제 프론트엔드 URL>
+
+# frontend/.env.local
+NEXT_PUBLIC_BACKEND_URL=<실제 백엔드 URL>
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=<프로젝트 ID>
+```
+
+로컬에서 Base Sepolia를 바라보며 띄울 때는:
+
+```bash
+cd backend && npm run start:dev
+cd frontend && npm run dev
+```
+
+Vercel/Render 배포에서는 파일을 복사하지 말고, 같은 값을 각 서비스의 환경변수 UI에 넣는 편이 안전합니다.
+
+`OPERATOR_PRIVATE_KEY`는 백엔드 전용 비밀값입니다. 프론트엔드 env에 두면 안 됩니다.
+
+## 기술 스택
 
 프로젝트는 대략 다음 구성으로 실행됩니다.
 
@@ -195,7 +243,9 @@ Circuit             +  Circom / snarkjs
 
 ```text
 backend/.env.example
+backend/.env.base-sepolia.example
 frontend/.env.local.example
+frontend/.env.base-sepolia.example
 ```
 
 ---

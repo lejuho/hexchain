@@ -89,7 +89,7 @@ echo "" >&2
 echo "=====================================" >&2
 echo "  전체 환경 실행 중" >&2
 echo "  프론트엔드: http://localhost:3000" >&2
-echo "  백엔드:     http://localhost:3001" >&2
+echo "  백엔드:     http://localhost:4000" >&2
 echo "  Anvil RPC:  http://localhost:8545  (Chain ID: 31337)" >&2
 echo "" >&2
 echo "  MetaMask 개인키 (메인넷 사용 금지)" >&2
