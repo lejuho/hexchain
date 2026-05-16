@@ -64,6 +64,10 @@ export class ChainService implements OnModuleInit {
   private contractAddress!: `0x${string}`
   private registryAddress: `0x${string}` | null = null
   private account!: Account
+  private readonly activeScanWindow = Math.max(
+    1,
+    Number.parseInt(process.env.ACTIVE_SCAN_WINDOW ?? '24', 10) || 24,
+  )
 
   onModuleInit() {
     const rpcUrl = process.env.RPC_URL            ?? 'http://localhost:8545'
@@ -85,7 +89,9 @@ export class ChainService implements OnModuleInit {
 
     const chain: Chain = rpcUrl.includes('localhost') || rpcUrl.includes('127.0.0.1')
       ? anvil
-      : rpcUrl.includes('base-sepolia') || rpcUrl.includes('84532')
+      : rpcUrl.includes('base-sepolia') ||
+        rpcUrl.includes('sepolia.base.org') ||
+        rpcUrl.includes('84532')
       ? baseSepolia
       : sepolia
     const transport = http(rpcUrl)
@@ -115,13 +121,21 @@ export class ChainService implements OnModuleInit {
     return this.getAllActiveRoundIds()
   }
 
-  /** Keeper 처리용: 0 ~ currentRoundId-1 범위를 스캔해 SETTLED가 아닌 라운드 모두 반환.
-   *  비공개 방처럼 Registry에 없는 라운드도 포함됩니다. */
+  /** Keeper 처리용: 최근 라운드 윈도우만 스캔해 SETTLED가 아닌 라운드 반환.
+   *  비공개 방처럼 Registry에 없는 라운드도 포함하되, 오래된 히스토리 전체를 매 tick마다 읽지 않습니다. */
   async getAllActiveRoundIds(): Promise<bigint[]> {
     const nextId = await this.getCurrentRoundId() // _nextRoundId
     if (nextId === 0n) return []
-    // createRound uses ++_nextRoundId (pre-increment), so roundIds are 1..nextId
-    const ids = Array.from({ length: Number(nextId) }, (_, i) => BigInt(i + 1))
+
+    // createRound uses ++_nextRoundId (pre-increment), so roundIds are 1..nextId.
+    // Testnet에서는 라운드 히스토리가 빠르게 쌓이므로, 최근 N개만 본다.
+    const firstId = nextId > BigInt(this.activeScanWindow)
+      ? nextId - BigInt(this.activeScanWindow) + 1n
+      : 1n
+    const ids = Array.from(
+      { length: Number(nextId - firstId + 1n) },
+      (_, i) => firstId + BigInt(i),
+    )
     const infos = await Promise.all(ids.map(id => this.getRoundInfo(id)))
     // startBlock=0 은 미존재 라운드(++_nextRoundId 이전 슬롯), state=4 는 SETTLED
     return ids.filter((_, i) => infos[i].startBlock !== 0n && infos[i].state !== 4)
