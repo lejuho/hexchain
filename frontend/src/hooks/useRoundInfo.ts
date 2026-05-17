@@ -10,7 +10,7 @@ export function useCurrentRoundId() {
 }
 
 export function useRoundInfo(roundId: bigint | undefined) {
-  const { data, refetch } = useReadContract({
+  const { data, refetch, isFetching } = useReadContract({
     ...hexChainContract,
     functionName: 'getRoundInfo',
     args: roundId !== undefined ? [roundId] : undefined,
@@ -24,7 +24,9 @@ export function useRoundInfo(roundId: bigint | undefined) {
     query: { refetchInterval: 4000 },
   })
 
-  if (!data) return { roundInfo: null, blockNumber, refetch }
+  // roundId가 바뀐 직후 wagmi/react-query가 직전 data를 잠깐 유지할 수 있다.
+  // 그 찰나의 stale data로 새 방을 만료 임박으로 오판하지 않도록 fetch 중에는 숨긴다.
+  if (!data || isFetching) return { roundInfo: null, blockNumber, refetch, isFetching }
 
   const [
     state, startBlock, lockBlock, revealBlock,
@@ -40,5 +42,6 @@ export function useRoundInfo(roundId: bigint | undefined) {
     },
     blockNumber,
     refetch,
+    isFetching,
   }
 }

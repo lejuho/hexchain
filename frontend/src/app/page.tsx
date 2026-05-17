@@ -59,6 +59,8 @@ export default function Home() {
   const [equippedPerkId, setEquippedPerkId] = useState<string | null>(null)
   const [showCommitForm, setShowCommitForm] = useState(false)
   const [createdRoomPendingSeat, setCreatedRoomPendingSeat] = useState(false)
+  const [autoOpenCommitAfterCreate, setAutoOpenCommitAfterCreate] = useState(false)
+  const [transitionNote, setTransitionNote] = useState<string | null>(null)
   const [wantsToJoin, setWantsToJoin] = useState(false)
   const [c7BlindActive, setC7BlindActive] = useState(false)
   const [lobbyTab, setLobbyTab] = useState<'quick' | 'private'>('quick')
@@ -82,7 +84,7 @@ export default function Home() {
 
   // activeRoundId: optimistic > sticky결과화면 > 내가 선택한 방
   const activeRoundId = optimisticRoundId ?? stickySettledRoundId ?? myRoundId
-  const { roundInfo, blockNumber, refetch: refetchRound } = useRoundInfo(activeRoundId)
+  const { roundInfo, blockNumber, refetch: refetchRound, isFetching: isRoundInfoFetching } = useRoundInfo(activeRoundId)
   const { playerInfo, refetch: refetchPlayer } = usePlayerInfo(activeRoundId)
   const { scoreBreakdown } = useScoreBreakdown(activeRoundId)
   const { takenPerks, otherPlayersInfo, allPlayersInfo } = useOtherPlayersPerks(activeRoundId)
@@ -115,7 +117,7 @@ export default function Home() {
       ? roundInfo.lockBlock - blockNumber
       : 0n
   // 커밋 창 위기 (1~2블록 이내) — 참여해도 커밋 불가
-  const isCommitWindowCritical = state === S_OPEN && roundInfo !== undefined && blockNumber !== undefined && blocksToLock <= 2n
+  const isCommitWindowCritical = state === S_OPEN && roundInfo !== null && blockNumber !== undefined && blocksToLock <= 2n
   // 만료 임박 — 인원 부족 + 커밋 창 위기 → Keeper가 곧 expireRound 호출
   const isAboutToExpire = isCommitWindowCritical && (roundInfo?.playerCount ?? 0) < 2
 
@@ -131,12 +133,12 @@ export default function Home() {
 
   // optimisticRoundId가 체인에서 확인되면 myRoundId로 확정
   useEffect(() => {
-    if (optimisticRoundId !== undefined && roundInfo !== null) {
+    if (optimisticRoundId !== undefined && roundInfo !== null && !isRoundInfoFetching) {
       flog(`[page] optimistic ${optimisticRoundId} → myRoundId 확정`)
       setMyRoundId(optimisticRoundId)
       setOptimisticRoundId(undefined)
     }
-  }, [optimisticRoundId, roundInfo])
+  }, [optimisticRoundId, roundInfo, isRoundInfoFetching])
 
   const isContractUnset = CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000'
 
@@ -165,10 +167,20 @@ export default function Home() {
       if (createdRoomPendingSeat || wantsToJoin)
         flog(`[page] seat/join 초기화 — hasCommitted=${hasCommitted} state=${state} hasNoRound=${hasNoRound}`)
       setCreatedRoomPendingSeat(false)
+      setAutoOpenCommitAfterCreate(false)
       setWantsToJoin(false)
       if (hasCommitted) setPrivateRoomCode(null)
     }
   }, [hasCommitted, state, hasNoRound]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 비공개 방 생성은 빈 껍데기 대신 방장 커밋까지 이어지는 개설 플로우로 취급한다.
+  // 실제 revealHash를 읽은 뒤 자동으로 커밋 폼을 열어 0명 방 상태를 오래 두지 않는다.
+  useEffect(() => {
+    if (autoOpenCommitAfterCreate && activeRoundId && roundInfo && state === S_OPEN && !hasCommitted) {
+      setShowCommitForm(true)
+      setAutoOpenCommitAfterCreate(false)
+    }
+  }, [autoOpenCommitAfterCreate, activeRoundId, roundInfo, state, hasCommitted])
 
   // 내가 참여한 라운드가 SETTLED되면 결과 화면 고정
   useEffect(() => {
@@ -210,16 +222,21 @@ export default function Home() {
       .catch(() => fwarn(`[page] LOCKED proof 재전송 실패 (round ${activeRoundId})`))
   }, [state, hasCommitted, hasRevealed, activeRoundId, address]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 커밋 전 대기실에서 방이 만료 임박이면 자동 로비 복귀
+  // 커밋 전 대기실에서 방이 만료 임박이면 짧은 전환을 보여준 뒤 로비로 복귀
   useEffect(() => {
-    if (isAboutToExpire && !hasCommitted) {
-      flog(`[page] 만료 임박 → 로비 복귀 (round ${activeRoundId})`)
+    if (!isAboutToExpire || hasCommitted || optimisticRoundId || isRoundInfoFetching) return
+    flog(`[page] 만료 임박 → 로비 복귀 (round ${activeRoundId})`)
+    setTransitionNote('인원이 부족해 방을 정리하고 로비로 돌아갑니다…')
+    const id = window.setTimeout(() => {
       setMyRoundId(undefined)
       setCreatedRoomPendingSeat(false)
+      setAutoOpenCommitAfterCreate(false)
       setWantsToJoin(false)
       setPrivateRoomCode(null)
-    }
-  }, [isAboutToExpire, hasCommitted])
+      setTransitionNote(null)
+    }, 650)
+    return () => window.clearTimeout(id)
+  }, [isAboutToExpire, hasCommitted, optimisticRoundId, isRoundInfoFetching, activeRoundId])
 
   const myCommitData = (() => {
     if (typeof window === 'undefined' || !activeRoundId) return null
@@ -395,6 +412,7 @@ export default function Home() {
                         setPrivateRoomCode(newRoundId.toString())
                         setOptimisticRoundId(newRoundId)
                         setCreatedRoomPendingSeat(true)
+                        setAutoOpenCommitAfterCreate(true)
                         refetchAll()
                       }}
                       onRoomJoined={(rid) => {
@@ -412,7 +430,7 @@ export default function Home() {
 
             {/* 라운드 정보 — 커밋 이후부터만 표시 */}
             {hasCommitted && roundInfo && activeRoundId && blockNumber && (
-              <>
+              <div key={`phase-${state}`} className="hx-phase-shell">
                 <div style={{ height: 16 }} />
                 <RoundStatus
                   roundId={activeRoundId}
@@ -437,7 +455,11 @@ export default function Home() {
                   players={allPlayersInfo}
                   showDeclared={state >= S_LOCKED}
                 />
-              </>
+              </div>
+            )}
+
+            {transitionNote && (
+              <div className="hx-transition-note">{transitionNote}</div>
             )}
 
             {/* ── OPEN ── */}
@@ -474,7 +496,24 @@ export default function Home() {
                     </div>
                   )
                 ) : !hasCommitted ? (
-                  showCommitForm ? (
+                  <>
+                    {privateRoomCode && (
+                      <div style={{ margin: '12px 20px 0' }}>
+                        <div className="text-gray-500 text-xs mb-1">비공개 방 코드 — 친구에게 공유하세요</div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-800 rounded-xl py-3 text-center font-mono text-2xl font-bold text-white tracking-[0.15em]">
+                            {privateRoomCode}
+                          </div>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(privateRoomCode)}
+                            className="px-3 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl text-xs text-gray-300 transition-colors"
+                          >
+                            복사
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {showCommitForm ? (
                     /* 커밋 폼 */
                     <>
                       <div style={{ margin: '12px 20px 0' }}>
@@ -523,22 +562,6 @@ export default function Home() {
                           🌫 안개전 발동 중 — 배율이 가려진 상태로 커밋됩니다
                         </div>
                       )}
-                      {privateRoomCode && (
-                        <div style={{ margin: '0 20px 12px' }}>
-                          <div className="text-gray-500 text-xs mb-1">비공개 방 코드 — 친구에게 공유하세요</div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-800 rounded-xl py-3 text-center font-mono text-2xl font-bold text-white tracking-[0.15em]">
-                              {privateRoomCode}
-                            </div>
-                            <button
-                              onClick={() => navigator.clipboard.writeText(privateRoomCode)}
-                              className="px-3 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl text-xs text-gray-300 transition-colors"
-                            >
-                              복사
-                            </button>
-                          </div>
-                        </div>
-                      )}
                       <WaitingRoom
                         playerCount={waitingRoomPlayerCount}
                         onReady={() => setShowCommitForm(true)}
@@ -554,7 +577,8 @@ export default function Home() {
                         </button>
                       </div>
                     </>
-                  )
+                    )}
+                  </>
                 ) : (roundInfo?.playerCount ?? 0) < 3 ? (
                   /* 커밋 완료, 아직 3명 미만 */
                   <>
@@ -744,9 +768,11 @@ export default function Home() {
                       <PrivateRoom
                         onRoomCreated={(newRoundId) => {
                           setPrivateRoomCode(newRoundId.toString())
+                          setEquippedPerkId(pickRandomPerk().id)
                           leaveSettled()
                           setOptimisticRoundId(newRoundId)
                           setCreatedRoomPendingSeat(true)
+                          setAutoOpenCommitAfterCreate(true)
                           refetchAll()
                         }}
                         onRoomJoined={(rid) => {

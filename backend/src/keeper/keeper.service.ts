@@ -64,7 +64,11 @@ private readonly debug:      DebugService,
       await this.tryCreateRoom()
     } else {
       const infos = await Promise.all(openRoundIds.map(id => this.chain.getRoundInfo(id)))
-      const hasOpenSlot = infos.some(i => i.state === 0 && i.playerCount < 3)
+      // 프론트 Quick Match와 같은 기준: 커밋 여유가 최소 3블록 남은 공개 방만 슬롯으로 인정.
+      // 죽기 직전 방 하나 때문에 새 공개 방 생성이 늦어지지 않게 한다.
+      const hasOpenSlot = infos.some(i =>
+        i.state === 0 && i.playerCount < 3 && i.lockBlock > block && i.lockBlock - block >= 3n,
+      )
       if (!hasOpenSlot) await this.tryCreateRoom()
     }
 

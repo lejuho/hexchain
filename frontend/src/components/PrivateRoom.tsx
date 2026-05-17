@@ -128,13 +128,13 @@ export function PrivateRoom({ onRoomCreated, onRoomJoined }: Props) {
           <div className="space-y-3">
             {!createdCode ? (
               <>
-                <p className="text-gray-400 text-sm">비공개 방을 만들고 코드를 친구에게 공유하세요.</p>
+                <p className="text-gray-400 text-sm">방을 만들고 바로 내 커밋까지 이어서 시작합니다.</p>
                 <button
                   onClick={handleCreate}
                   disabled={isPending || isConfirming}
                   className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
                 >
-                  {isPending ? '지갑 확인 중...' : isConfirming ? '생성 중...' : '비공개 방 만들기'}
+                  {isPending ? '지갑 확인 중...' : isConfirming ? '생성 중...' : '비공개 게임 시작'}
                 </button>
                 {writeError && (
                   <p className="text-red-400 text-xs text-center">
