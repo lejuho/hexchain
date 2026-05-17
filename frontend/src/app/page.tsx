@@ -8,6 +8,7 @@ import { hexChainContract } from '@/lib/config'
 import { useRoundInfo } from '@/hooks/useRoundInfo'
 import { usePlayerInfo } from '@/hooks/usePlayerInfo'
 import { useScoreBreakdown } from '@/hooks/useScoreBreakdown'
+import { useInterpolatedChainClock } from '@/hooks/useInterpolatedChainClock'
 import { Header } from '@/components/Header'
 import { PhaseGuide } from '@/components/PhaseGuide'
 import { CommitForm } from '@/components/CommitForm'
@@ -116,10 +117,12 @@ export default function Home() {
     state === S_OPEN && roundInfo && blockNumber && roundInfo.lockBlock > blockNumber
       ? roundInfo.lockBlock - blockNumber
       : 0n
+  const { msUntil: pageMsUntil } = useInterpolatedChainClock(blockNumber, chainId)
+  const commitDeadlineMs = roundInfo ? pageMsUntil(roundInfo.lockBlock) : null
   // 커밋 창 위기 (1~2블록 이내) — 참여해도 커밋 불가
   const isCommitWindowCritical = state === S_OPEN && roundInfo !== null && blockNumber !== undefined && blocksToLock <= 2n
   // 만료 임박 — 인원 부족 + 커밋 창 위기 → Keeper가 곧 expireRound 호출
-  const isAboutToExpire = isCommitWindowCritical && (roundInfo?.playerCount ?? 0) < 2
+  const isAboutToExpire = !!roundInfo && roundInfo.startBlock > 0n && isCommitWindowCritical && roundInfo.playerCount < 2
 
   const leaveSettled = () => {
     setStickySettledRoundId(undefined)
@@ -133,7 +136,9 @@ export default function Home() {
 
   // optimisticRoundId가 체인에서 확인되면 myRoundId로 확정
   useEffect(() => {
-    if (optimisticRoundId !== undefined && roundInfo !== null && !isRoundInfoFetching) {
+    // getRoundInfo의 기본 zero struct(startBlock=0)는 존재하지 않는 라운드/전환 중 응답이다.
+    // 이걸 새 방 확인으로 받아들이면 optimistic 방을 즉시 로비로 밀어낸다.
+    if (optimisticRoundId !== undefined && roundInfo !== null && roundInfo.startBlock > 0n && !isRoundInfoFetching) {
       flog(`[page] optimistic ${optimisticRoundId} → myRoundId 확정`)
       setMyRoundId(optimisticRoundId)
       setOptimisticRoundId(undefined)
@@ -176,7 +181,7 @@ export default function Home() {
   // 비공개 방 생성은 빈 껍데기 대신 방장 커밋까지 이어지는 개설 플로우로 취급한다.
   // 실제 revealHash를 읽은 뒤 자동으로 커밋 폼을 열어 0명 방 상태를 오래 두지 않는다.
   useEffect(() => {
-    if (autoOpenCommitAfterCreate && activeRoundId && roundInfo && state === S_OPEN && !hasCommitted) {
+    if (autoOpenCommitAfterCreate && activeRoundId && roundInfo && roundInfo.startBlock > 0n && state === S_OPEN && !hasCommitted) {
       setShowCommitForm(true)
       setAutoOpenCommitAfterCreate(false)
     }
@@ -199,12 +204,12 @@ export default function Home() {
 
   // localStorage 복원된 roundId가 현재 체인에 없으면 초기화 (체인 재시작 대응)
   useEffect(() => {
-    if (myRoundId && !optimisticRoundId && roundInfo && roundInfo.startBlock === 0n) {
+    if (myRoundId && !optimisticRoundId && !createdRoomPendingSeat && roundInfo && roundInfo.startBlock === 0n) {
       fwarn(`[page] startBlock=0 감지 → myRoundId(${myRoundId}) 초기화`)
       localStorage.removeItem(commitStorageKey(myRoundId))
       setMyRoundId(undefined)
     }
-  }, [myRoundId, optimisticRoundId, roundInfo])
+  }, [myRoundId, optimisticRoundId, createdRoomPendingSeat, roundInfo])
 
   // LOCKED 진입 시 localStorage proof를 백엔드에 재전송 (미리빌된 경우 skip)
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
@@ -537,6 +542,9 @@ export default function Home() {
                           equippedPerk={equippedPerk}
                           hideMultipliers={hideMultipliers}
                           blocksToLock={blocksToLock ?? 0n}
+                          deadlineBlock={roundInfo?.lockBlock}
+                          currentBlock={blockNumber}
+                          chainId={chainId}
                           onSuccess={() => { setShowCommitForm(false); refetchAll() }}
                         />
                       )}
@@ -547,7 +555,7 @@ export default function Home() {
                       {/* 커밋 마감 블록 */}
                       {roundInfo && blockNumber && roundInfo.lockBlock > blockNumber && (
                         <div style={{ margin: '12px 20px 0', padding: '8px 12px', borderRadius: 10, background: 'rgba(99,102,241,.1)', border: '1px solid rgba(99,102,241,.25)', fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
-                          ⏱ 커밋 마감까지 <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{Number(roundInfo.lockBlock - blockNumber)}블록</span> 남음
+                          ⏱ 커밋 마감까지 <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{Number(roundInfo.lockBlock - blockNumber)}블록 · {formatCountdownMs(commitDeadlineMs)}</span> 남음
                         </div>
                       )}
                       <div style={{ margin: '16px 20px 0' }}>
@@ -813,4 +821,14 @@ function StatusHint({ color, text }: { color: string; text: string }) {
       <div>{text}</div>
     </div>
   )
+}
+
+
+function formatCountdownMs(ms: number | null) {
+  if (ms === null) return '--:--.---'
+  const total = Math.max(0, Math.ceil(ms))
+  const mins = Math.floor(total / 60_000)
+  const secs = Math.floor((total % 60_000) / 1000)
+  const millis = total % 1000
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(millis).padStart(3, '0')}`
 }

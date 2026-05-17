@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId } from 'wagmi'
+import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi'
 import { hexChainContract } from '@/lib/config'
 import { generateSalt, HEX_LABELS, computeNibbleMult } from '@/lib/utils'
 import { buildCommitHash } from '@/lib/poseidon'
@@ -9,6 +9,7 @@ import { useLocalCommit } from '@/hooks/useLocalCommit'
 import { perkStringToId } from '@/lib/perks'
 import type { Perk } from '@/lib/perks'
 import { flog } from '@/lib/flog'
+import { useInterpolatedChainClock } from '@/hooks/useInterpolatedChainClock'
 
 const MULT_CLS = ['m10', 'm15', 'm20', 'm25', 'm30'] as const
 type MultCls = typeof MULT_CLS[number]
@@ -30,29 +31,24 @@ interface Props {
   equippedPerk: Perk | null
   hideMultipliers?: boolean
   blocksToLock?: bigint
+  deadlineBlock?: bigint
+  currentBlock?: bigint
+  chainId?: number
   onSuccess: () => void
 }
 
-function useBlockCountdown(blocksToLock: bigint | undefined): string | null {
-  const chainId = useChainId()
-  const blockSec = (chainId === 31337 || chainId === 84532) ? 2 : 12
-  const [secsLeft, setSecsLeft] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (blocksToLock === undefined || blocksToLock <= 0n) { setSecsLeft(null); return }
-    const total = Number(blocksToLock) * blockSec
-    setSecsLeft(total)
-    const id = setInterval(() => setSecsLeft(s => (s !== null && s > 0 ? s - 1 : 0)), 1000)
-    return () => clearInterval(id)
-  }, [blocksToLock, blockSec])
-
-  if (secsLeft === null || secsLeft <= 0) return null
-  if (secsLeft >= 60) return `약 ${Math.ceil(secsLeft / 60)}분`
-  return `${secsLeft}초`
+function formatCountdownMs(ms: number | null) {
+  if (ms === null) return '--:--.---'
+  const total = Math.max(0, Math.ceil(ms))
+  const mins = Math.floor(total / 60_000)
+  const secs = Math.floor((total % 60_000) / 1000)
+  const millis = total % 1000
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(millis).padStart(3, '0')}`
 }
 
-export function CommitForm({ roundId, revealHash, equippedPerk, hideMultipliers = false, blocksToLock, onSuccess }: Props) {
-  const timeLeft = useBlockCountdown(blocksToLock)
+export function CommitForm({ roundId, revealHash, equippedPerk, hideMultipliers = false, blocksToLock, deadlineBlock, currentBlock, chainId, onSuccess }: Props) {
+  const { msUntil } = useInterpolatedChainClock(currentBlock, chainId)
+  const timeLeft = deadlineBlock !== undefined ? msUntil(deadlineBlock) : null
   const nibbleMult = computeNibbleMult(revealHash)
   const [selected, setSelected] = useState<number[]>([])
   const [isBuilding, setIsBuilding] = useState(false)
@@ -108,7 +104,7 @@ export function CommitForm({ roundId, revealHash, equippedPerk, hideMultipliers 
         <div style={{ margin: '12px 20px 0', padding: '8px 12px', borderRadius: 10, background: blocksToLock <= 3n ? 'rgba(239,68,68,.1)' : 'rgba(99,102,241,.1)', border: `1px solid ${blocksToLock <= 3n ? 'rgba(239,68,68,.3)' : 'rgba(99,102,241,.25)'}`, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
           ⏱ 커밋 마감까지{' '}
           <span style={{ color: blocksToLock <= 3n ? '#f87171' : '#a5b4fc', fontWeight: 600 }}>{Number(blocksToLock)}블록</span>
-          {timeLeft && <span style={{ color: 'var(--muted)', marginLeft: 4 }}>({timeLeft})</span>}
+          <span style={{ color: 'var(--muted)', marginLeft: 4 }}>({formatCountdownMs(timeLeft)})</span>
           {' '}남음
         </div>
       )}
